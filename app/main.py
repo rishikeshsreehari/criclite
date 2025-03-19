@@ -25,6 +25,11 @@ default_cricket_data = {
     'tournaments': []
 }
 
+# Store previous data and current interval for adaptive updates
+last_cricket_data = None
+current_update_interval = 120  # Start with 2 minutes
+next_update_time = None
+
 def load_cricket_data():
     """Load cricket data from the JSON file"""
     if os.path.exists(DATA_FILE):
@@ -34,52 +39,6 @@ def load_cricket_data():
         except:
             pass
     return default_cricket_data
-
-def format_team_and_score(team_name, score, max_width=35):
-    """Format team name and score to fit within max_width"""
-    # If team name is too long and we have a score, abbreviate the team name
-    if len(team_name) > 20 and score:
-        parts = team_name.split()
-        if len(parts) > 1:
-            # Use initials for middle parts
-            abbreviated = parts[0] + ' ' + ' '.join(p[0] + '.' for p in parts[1:-1]) + ' ' + parts[-1]
-            team_name = abbreviated
-    
-    team_display = team_name[:20].ljust(20)
-    score_display = format_score(score, 15)
-    return f"{team_display} {score_display}"
-
-def format_score(score, max_width=15):
-    """Format score to fit within max_width"""
-    if not score:
-        return ""
-    
-    # If score too long, try more compact format
-    if len(score) > max_width:
-        # Remove unnecessary spaces, shorten common terms
-        score = score.replace(" ov)", ")")
-        score = score.replace("    ", " ")
-    
-    return score[:max_width]
-
-def format_multiline_field(text, box_width):
-    """Format text into multiple lines that fit within box_width"""
-    words = text.split()
-    lines = []
-    current = ""
-    
-    for word in words:
-        if len(current + " " + word if current else word) <= box_width:
-            current = current + " " + word if current else word
-        else:
-            lines.append(current)
-            current = word
-    
-    if current:
-        lines.append(current)
-    
-    return [line.ljust(box_width) for line in lines]
-
 
 def format_match_for_display(match, use_symbols=True):
     """Format a match into a nice ASCII box with consistent dimensions"""
@@ -97,7 +56,7 @@ def format_match_for_display(match, use_symbols=True):
     # Fixed dimensions - these should never change
     OUTER_WIDTH = 41  # Total width including borders
     INNER_WIDTH = 37  # Content width
-    STANDARD_HEIGHT = 13  # Standard number of lines for each box (increased to 13)
+    STANDARD_HEIGHT = 13  # Standard number of lines for each box
     
     # Create a standard box template
     top_border = "+" + "-" * (OUTER_WIDTH - 2) + "+"
@@ -109,7 +68,7 @@ def format_match_for_display(match, use_symbols=True):
     box_lines = []
     box_lines.append(top_border)
     
-    # Format match info with [LIVE] prefix if live
+    # Format match info - always prefix with [LIVE] if live
     info_prefix = "[LIVE] " if is_live else ""
     match_info_cleaned = match_info.replace("\n", " ").strip()
     
@@ -132,32 +91,35 @@ def format_match_for_display(match, use_symbols=True):
         padded_line = line.ljust(INNER_WIDTH)
         box_lines.append(f"| {padded_line} |")
     
-    # Add empty line if needed for spacing
-    if category and len(info_lines) < 3:
-        box_lines.append(empty_line)
+    # Add empty line
+    box_lines.append(empty_line)
     
-    # Add tournament category if available
+    # Add tournament category
     if category:
-        # Handle long category names
+        # Handle long category names by wrapping if needed
         if len(category) > INNER_WIDTH:
-            words = category.split()
-            line = ""
-            for word in words:
-                if len(line + word) + 1 <= INNER_WIDTH:
-                    line += (word + " ")
+            # Split long category name into multiple lines
+            cat_words = category.split()
+            cat_line = ""
+            for word in cat_words:
+                if len(cat_line + word) + 1 <= INNER_WIDTH:
+                    cat_line += (word + " ")
                 else:
-                    box_lines.append(f"| {line.strip().ljust(INNER_WIDTH)} |")
-                    line = word + " "
-            if line.strip():
-                box_lines.append(f"| {line.strip().ljust(INNER_WIDTH)} |")
+                    box_lines.append(f"| {cat_line.strip().ljust(INNER_WIDTH)} |")
+                    cat_line = word + " "
+            
+            if cat_line.strip():
+                box_lines.append(f"| {cat_line.strip().ljust(INNER_WIDTH)} |")
         else:
-            box_lines.append(f"| {category.ljust(INNER_WIDTH)} |")
+            category_line = category[:INNER_WIDTH].ljust(INNER_WIDTH)
+            box_lines.append(f"| {category_line} |")
+        
+        box_lines.append(empty_line)
     
     # Add separator before scores
     box_lines.append(score_separator)
     
-    # Process team scores with line splitting for long names/scores
-    
+    # Process team scores
     # Team 1 and score
     if len(team1) + len(score1) + 1 <= INNER_WIDTH:
         # Can fit on one line
@@ -201,7 +163,7 @@ def format_match_for_display(match, use_symbols=True):
     # Add bottom border
     box_lines.append(bottom_border)
     
-    # Ensure exact height matching - this is the key fix
+    # Ensure exact height matching
     if len(box_lines) < STANDARD_HEIGHT:
         # Box is too short, add empty lines before bottom border
         bottom_border = box_lines.pop()  # Remove bottom border
@@ -214,10 +176,6 @@ def format_match_for_display(match, use_symbols=True):
         box_lines.append(bottom_border)
     elif len(box_lines) > STANDARD_HEIGHT:
         # Box is too tall, need to trim intelligently
-        
-        # Always keep the first 3 lines (top border + 2 info lines)
-        # Always keep the last 2 lines (last status line + bottom border)
-        # Always keep the score section with separators
         
         # Find score separators
         separator_indices = []
@@ -267,6 +225,7 @@ def format_match_for_display(match, use_symbols=True):
     box_text = "\n".join(box_lines)
     
     return box_text
+
 # Add custom Jinja2 filters
 @app.on_event("startup")
 async def add_jinja_filters():
@@ -315,13 +274,21 @@ async def root(request: Request):
         else:  # scheduled or unknown
             upcoming_matches.append(formatted_match)
     
+    # Calculate next update time
+    next_update_mins = 0
+    if next_update_time:
+        now = time.time()
+        if next_update_time > now:
+            next_update_mins = round((next_update_time - now) / 60)
+    
     response = templates.TemplateResponse("index.html", {
         "request": request,
         "live_matches": live_matches,
         "completed_matches": completed_matches,
         "upcoming_matches": upcoming_matches,
         "last_updated": cricket_data['last_updated'],
-        "time_ago": time_ago
+        "time_ago": time_ago,
+        "next_update_mins": next_update_mins
     })
     
     response.headers.update({"Cache-Control": f"max-age={cache_time}"})
@@ -386,6 +353,14 @@ async def plain_text():
     
     output.append("=================================================================")
     output.append(f"Last updated: {cricket_data['last_updated']}")
+    
+    # Add next update info if available
+    if next_update_time:
+        now = time.time()
+        if next_update_time > now:
+            next_update_mins = round((next_update_time - now) / 60)
+            output.append(f"Next update in approximately {next_update_mins} minutes.")
+    
     output.append("Refresh page to update scores.")
     
     # Join all lines and return
@@ -399,25 +374,65 @@ async def about(request: Request):
     })
 
 async def update_cricket_data():
-    """Background task to update cricket data every 2 minutes"""
+    """Background task to update cricket data with adaptive interval"""
+    global last_cricket_data
+    global current_update_interval
+    global next_update_time
+    
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
-            # Fetch the latest data (data_fetcher now handles saving to file)
+            # Fetch the latest data
             print(f"[{current_time}] Fetching cricket data...")
             cricket_data = fetch_live_scores()
             
-            # Adaptive refresh timing based on live matches
-            live_matches = sum(1 for match in cricket_data['matches'] if match['is_live'])
-            wait_time = 90 if live_matches > 0 else 180  # 1.5 mins or 3 mins
+            # Calculate next update time based on whether data changed
+            if last_cricket_data:
+                # Check if data changed
+                data_changed = False
+                
+                # Compare live matches
+                prev_live_matches = sum(1 for m in last_cricket_data['matches'] if m['is_live'])
+                curr_live_matches = sum(1 for m in cricket_data['matches'] if m['is_live'])
+                
+                if prev_live_matches != curr_live_matches:
+                    data_changed = True
+                else:
+                    # Check if scores changed for live matches
+                    prev_scores = {f"{m['team1']}_{m['team2']}": (m['score1'], m['score2']) 
+                                  for m in last_cricket_data['matches'] if m['is_live']}
+                    curr_scores = {f"{m['team1']}_{m['team2']}": (m['score1'], m['score2']) 
+                                  for m in cricket_data['matches'] if m['is_live']}
+                    
+                    if prev_scores != curr_scores:
+                        data_changed = True
+                
+                if data_changed:
+                    # Reset interval if data changed
+                    current_update_interval = 120  # 2 minutes
+                else:
+                    # Increase interval, with a maximum of 20 minutes
+                    current_update_interval = min(current_update_interval * 1.5, 1200)
             
-            print(f"[{current_time}] Data updated. Found {live_matches} live matches. Next update in {wait_time} seconds.")
+            # Store current data for next comparison
+            last_cricket_data = cricket_data
+            
+            # Set the next update time
+            next_update_time = time.time() + current_update_interval
+            
+            # Log information about the update
+            live_matches = sum(1 for m in cricket_data['matches'] if m['is_live'])
+            minutes = round(current_update_interval / 60, 1)
+            print(f"[{current_time}] Data updated. Found {live_matches} live matches. " +
+                  f"Next update in {minutes} minutes.")
+            
         except Exception as e:
             print(f"[{current_time}] Error updating cricket data: {e}")
-            wait_time = 120  # Default to 2 minutes on error
+            current_update_interval = 120  # Reset to default on error
+            next_update_time = time.time() + current_update_interval
         
         # Wait before updating again
-        await asyncio.sleep(wait_time)
+        await asyncio.sleep(current_update_interval)
 
 @app.on_event("startup")
 async def startup_event():
@@ -435,4 +450,4 @@ async def startup_event():
     asyncio.create_task(update_cricket_data())
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

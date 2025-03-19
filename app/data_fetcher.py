@@ -25,22 +25,23 @@ PRIORITY_CATEGORIES = {
     "Pakistan Super League": 3,
     "Caribbean Premier League": 3,
     "The Hundred": 3,
+    "National T20 Cup": 5,
     "Durham tour of Zimbabwe": 6,
     "Men's PM Cup": 7,
+    "Dhaka Premier Division Cricket League": 8,
     # Add others as needed
     "default": 10
 }
 
 # Define tournaments to be ignored
 IGNORED_TOURNAMENTS = [
+    "Dhaka Premier Division Cricket League",
     "National Super League 4-Day Tournament",
-    "CSA 4-Day Series Division 1",
     "CSA 4-Day Series Division 2",
+    "CSA 4-Day Series Division 1",
+    "Men's PM Cup",
     "National T20 Cup",
-    "Men's PM Cup" , 
-
-
-
+    # Add any other tournaments you want to ignore
 ]
 
 def determine_match_status(status_text, is_live_icon_present):
