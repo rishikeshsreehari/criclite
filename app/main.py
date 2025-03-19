@@ -10,7 +10,7 @@ import time
 import json
 import os
 
-from data_fetcher import fetch_live_scores, DATA_FILE, DATA_FOLDER
+from app.data_fetcher import fetch_live_scores, DATA_FILE, DATA_FOLDER
 
 app = FastAPI()
 
