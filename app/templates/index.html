@@ -45,6 +45,22 @@
         .live {
             color: #f00;
         }
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .footer-links a {
+            color: #000;
+            text-decoration: none;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        .builder {
+            margin-top: 5px;
+        }
         
         @media (max-width: 1000px) {
             .match-col {
@@ -63,8 +79,8 @@
     <div class="container">
         <div class="header">
             <pre>
-                        CRICLITE.COM
-                 MINIMALIST CRICKET SCORES
+CRICLITE.COM
+Live cricket scores in plain text
 =================================================================
             </pre>
         </div>
@@ -73,7 +89,6 @@
         <div class="tournament">
             <div class="tournament-header">
                 <pre>{{ tournament.name }}</pre>
-                <pre>Schedule   Standings   Teams</pre>
             </div>
             <div class="match-row">
                 {% for match in tournament.matches %}
@@ -89,6 +104,14 @@
 Last updated: {{ last_updated }} ({{ time_ago }})
 Page auto-refreshes every 2 minutes.
             </pre>
+            <div class="footer-links">
+                <a href="#">Source</a>
+                <a href="#">About</a>
+                <a href="#">Support</a>
+            </div>
+            <div class="builder">
+                Built by Rishikesh
+            </div>
         </div>
     </div>
 </body>
