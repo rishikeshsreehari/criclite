@@ -12,20 +12,32 @@
             padding: 10px;
             background-color: #fff;
             color: #000;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
         }
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 0 10px; /* Add padding for mobile */
         }
         .header, .footer {
             text-align: center;
         }
-        .tournament {
+        .header pre, .footer pre {
+            white-space: pre-wrap; /* Allow headers to wrap on mobile */
+            overflow-x: auto; /* Enable horizontal scrolling only when needed */
+            max-width: 100%; /* Limit width to container */
+            word-wrap: break-word; /* Break long words if needed */
+        }
+        .section {
             margin-bottom: 20px;
         }
-        .tournament-header {
+        .section-header {
             text-align: center;
             margin: 30px 0 10px 0;
+            padding: 5px;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            font-weight: bold;
         }
         .match-row {
             display: flex;
@@ -43,19 +55,13 @@
             width: 345px;  /* Set to exact width to match box size */
             min-width: 345px;
         }
-        .live {
-            color: #ff0000;
-            font-weight: bold;
-        }
-        .live-indicator {
-            color: #ff0000;
-            font-weight: bold;
-        }
         .footer-links {
             display: flex;
             justify-content: center;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
             gap: 20px;
             margin-top: 10px;
+            padding: 0 10px; /* Add padding for small screens */
         }
         .footer-links a {
             color: #000;
@@ -72,54 +78,7 @@
         pre {
             margin: 0;
         }
-        
-        .filter-controls {
-            text-align: center;
-            margin: 10px 0;
-        }
-        
-        /* Dark mode support */
-        :root {
-            --bg-color: #fff;
-            --text-color: #000;
-            --link-color: #000;
-        }
-        
-        .dark-mode {
-            --bg-color: #121212;
-            --text-color: #eee;
-            --link-color: #9dc6ff;
-        }
-        
-        body.dark-mode {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }
-        
-        body.dark-mode .footer-links a {
-            color: var(--link-color);
-        }
-        
-        .theme-toggle {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-            body:not(.light-mode) {
-                background-color: #121212;
-                color: #eee;
-            }
-            body:not(.light-mode) .footer-links a {
-                color: #9dc6ff;
-            }
-        }
-        
+                
         @media (max-width: 1100px) {
             .match-row {
                 justify-content: center;
@@ -130,15 +89,50 @@
         }
         
         @media (max-width: 650px) {
+            .container {
+                padding: 0 5px; /* Reduce padding on very small screens */
+            }
             .match-col {
                 width: 100%;
-                min-width: 300px;
+                min-width: unset; /* Remove min-width constraint on mobile */
+                max-width: 100%; /* Ensure it doesn't overflow container */
+                font-size: 12px; /* Slightly smaller font for mobile */
+            }
+            /* Handle long headers in mobile view */
+            .header pre, .footer pre {
+                font-size: 12px; /* Smaller font for header/footer on mobile */
+            }
+            /* Fix for the ASCII-art boxes on mobile */
+            pre {
+                font-size: 12px; /* Consistent font sizing */
+                overflow-x: auto; /* Allow horizontal scrolling for individual boxes if needed */
+            }
+            /* Make the match columns scale properly */
+            .match-col pre {
+                width: 100%; /* Stretch to fill the container */
+                box-sizing: border-box;
+            }
+            /* Adjust footer links for mobile */
+            .footer-links {
+                flex-direction: row; /* Keep horizontal on medium screens */
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 10px;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .footer-links {
+                flex-direction: column; /* Stack vertically on very small screens */
+                align-items: center;
+            }
+            .match-col {
+                font-size: 11px; /* Even smaller on very small screens */
             }
         }
     </style>
 </head>
 <body>
-    <button onclick="toggleDarkMode()" class="theme-toggle">🌙</button>
     <div class="container">
         <div class="header">
             <pre>
@@ -148,28 +142,44 @@ Live cricket scores in plain text
             </pre>
         </div>
 
-        <div class="filter-controls">
-            <label for="filter">Show: </label>
-            <select id="filter" onchange="filterMatches()">
-                <option value="all">All matches</option>
-                <option value="live">Live matches only</option>
-                <option value="completed">Completed matches</option>
-                <option value="scheduled">Upcoming matches</option>
-            </select>
-        </div>
-
-        {% for tournament in tournaments %}
-        <div class="tournament">
-            <div class="tournament-header">
-                <pre>{{ tournament.name }}</pre>
+        {% if live_matches %}
+        <div class="section">
+            <div class="section-header">
+                <pre>LIVE</pre>
             </div>
             <div class="match-row">
-                {% for match in tournament.matches %}
+                {% for match in live_matches %}
                 <div class="match-col">{{ match | safe }}</div>
                 {% endfor %}
             </div>
         </div>
-        {% endfor %}
+        {% endif %}
+
+        {% if upcoming_matches %}
+        <div class="section">
+            <div class="section-header">
+                <pre>UPCOMING</pre>
+            </div>
+            <div class="match-row">
+                {% for match in upcoming_matches %}
+                <div class="match-col">{{ match | safe }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if completed_matches %}
+        <div class="section">
+            <div class="section-header">
+                <pre>COMPLETED</pre>
+            </div>
+            <div class="match-row">
+                {% for match in completed_matches %}
+                <div class="match-col">{{ match | safe }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
 
         <div class="footer">
             <pre>
@@ -181,81 +191,13 @@ Page auto-refreshes every 2 minutes.
                 <a href="/about">About</a>
                 <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
                 <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
+                <div><a href="/plain.txt" target="_blank">plain.txt</a></div>
             </div>
-            <a href="/plain.txt" target="_blank">Plain Text Version</a>
 
             <div class="builder">
                 Built by <a href="https://rishikeshs.com" target="_blank">Rishikesh</a>
             </div>
         </div>
     </div>
-    
-    <script>
-    function filterMatches() {
-        const filter = document.getElementById('filter').value;
-        const tournaments = document.querySelectorAll('.tournament');
-        
-        tournaments.forEach(tournament => {
-            const matchCols = tournament.querySelectorAll('.match-col');
-            let visibleCount = 0;
-            
-            matchCols.forEach(col => {
-                if (filter === 'all') {
-                    col.style.display = 'block';
-                    visibleCount++;
-                    return;
-                }
-                
-                const isLive = col.innerHTML.includes('live-indicator') || col.innerHTML.includes('LIVE');
-                const isCompleted = col.textContent.includes('won by');
-                const isScheduled = col.textContent.includes('scheduled to begin');
-                
-                if ((filter === 'live' && isLive) ||
-                    (filter === 'completed' && isCompleted) ||
-                    (filter === 'scheduled' && isScheduled)) {
-                    col.style.display = 'block';
-                    visibleCount++;
-                } else {
-                    col.style.display = 'none';
-                }
-            });
-            
-            // Hide the tournament header if no matches are visible
-            const tournamentHeader = tournament.querySelector('.tournament-header');
-            if (tournamentHeader) {
-                tournamentHeader.style.display = visibleCount > 0 ? 'block' : 'none';
-            }
-        });
-    }
-    
-    function toggleDarkMode() {
-        document.body.classList.toggle('dark-mode');
-        document.body.classList.remove('light-mode');
-        const button = document.querySelector('.theme-toggle');
-        if (document.body.classList.contains('dark-mode')) {
-            button.textContent = '☀️';
-            localStorage.setItem('theme', 'dark');
-        } else {
-            button.textContent = '🌙';
-            localStorage.setItem('theme', 'light');
-            document.body.classList.add('light-mode');
-        }
-    }
-    
-    // Check user preference when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            document.body.classList.add('dark-mode');
-            document.querySelector('.theme-toggle').textContent = '☀️';
-        } else if (savedTheme === 'light') {
-            document.body.classList.add('light-mode');
-        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            // No saved preference but OS preference is dark
-            document.body.classList.add('dark-mode');
-            document.querySelector('.theme-toggle').textContent = '☀️';
-        }
-    });
-    </script>
 </body>
 </html>

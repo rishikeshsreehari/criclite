@@ -9,7 +9,6 @@ from datetime import datetime
 import time
 import json
 import os
-from itertools import groupby
 
 from data_fetcher import fetch_live_scores, DATA_FILE, DATA_FOLDER
 
@@ -36,91 +35,53 @@ def load_cricket_data():
             pass
     return default_cricket_data
 
-def format_match_for_display(match, use_symbols=True):
-    """Format a match into a nice ASCII box with proper line breaks"""
+def format_team_and_score(team_name, score, max_width=35):
+    """Format team name and score to fit within max_width"""
+    # If team name is too long and we have a score, abbreviate the team name
+    if len(team_name) > 20 and score:
+        parts = team_name.split()
+        if len(parts) > 1:
+            # Use initials for middle parts
+            abbreviated = parts[0] + ' ' + ' '.join(p[0] + '.' for p in parts[1:-1]) + ' ' + parts[-1]
+            team_name = abbreviated
     
-    # Get match data
-    match_info = match['match_info']
-    team1 = match['team1']
-    team2 = match['team2']
-    score1 = match['score1'] if match['score1'] else ""
-    score2 = match['score2'] if match['score2'] else ""
-    status = match['status']
-    
-    # Use appropriate status indicator based on preference
-    if use_symbols:
-        is_live = "●" if match['is_live'] else "○"
-        is_live_prefix = f"{is_live} "
-    else:
-        # For plain text, use shorter indicator to maintain alignment
-        is_live = "LIVE" if match['is_live'] else ""
-        # Add the status at the beginning with proper spacing to maintain alignment
-        is_live_prefix = f"{is_live} " if is_live else ""
-    
-    # Create a fixed width box
-    box_width = 37  # Width of content inside the box
-    
-    box = []
-    box.append("+---------------------------------------+")
-    
-    # Handle match info - split into multiple lines if needed
-    match_info_words = match_info.split()
-    match_info_lines = []
-    current_line = is_live_prefix  # Start with live indicator
-    
-    for word in match_info_words:
-        if len(current_line + word) <= box_width:
-            current_line += word + " "
-        else:
-            # Trim trailing space
-            match_info_lines.append(current_line.rstrip())
-            current_line = word + " "
-    
-    if current_line:
-        match_info_lines.append(current_line.rstrip())
-    
-    # Ensure lines are exactly box_width
-    for line in match_info_lines:
-        box.append(f"| {line.ljust(box_width)} |")
-    
-    box.append("|                                       |")
-    
-    # Format team names and scores with fixed width for uniformity
-    team1_name = team1[:20].ljust(20)
-    team2_name = team2[:20].ljust(20)
-    
-    team1_score = f"{team1_name} {score1}"
-    team2_score = f"{team2_name} {score2}"
-    
-    box.append(f"| {team1_score[:box_width].ljust(box_width)} |")
-    box.append(f"| {team2_score[:box_width].ljust(box_width)} |")
-    box.append("|                                       |")
-    
-    # Handle status - split into multiple lines if needed
-    status_words = status.split()
-    status_lines = []
-    current_line = ""
-    
-    for word in status_words:
-        if len(current_line + " " + word) <= box_width:
-            current_line += " " + word if current_line else word
-        else:
-            status_lines.append(current_line)
-            current_line = word
-    
-    if current_line:
-        status_lines.append(current_line)
-    
-    for line in status_lines:
-        box.append(f"| {line.ljust(box_width)} |")
-    
-    box.append("+---------------------------------------+")
-    
-    return "\n".join(box)
+    team_display = team_name[:20].ljust(20)
+    score_display = format_score(score, 15)
+    return f"{team_display} {score_display}"
 
+def format_score(score, max_width=15):
+    """Format score to fit within max_width"""
+    if not score:
+        return ""
+    
+    # If score too long, try more compact format
+    if len(score) > max_width:
+        # Remove unnecessary spaces, shorten common terms
+        score = score.replace(" ov)", ")")
+        score = score.replace("    ", " ")
+    
+    return score[:max_width]
+
+def format_multiline_field(text, box_width):
+    """Format text into multiple lines that fit within box_width"""
+    words = text.split()
+    lines = []
+    current = ""
+    
+    for word in words:
+        if len(current + " " + word if current else word) <= box_width:
+            current = current + " " + word if current else word
+        else:
+            lines.append(current)
+            current = word
+    
+    if current:
+        lines.append(current)
+    
+    return [line.ljust(box_width) for line in lines]
 
 def format_match_for_display(match, use_symbols=True):
-    """Format a match into a nice ASCII box with proper line breaks"""
+    """Format a match into a nice ASCII box with proper line breaks and consistent dimensions"""
     
     # Get match data
     match_info = match['match_info']
@@ -130,12 +91,10 @@ def format_match_for_display(match, use_symbols=True):
     score2 = match['score2'] if match['score2'] else ""
     status = match['status']
     is_live = match['is_live']
+    category = match['category']
     
     # Create a fixed width box
     box_width = 37  # Width of content inside the box
-    
-    # Create a marker for where to insert the LIVE indicator
-    live_marker = "{LIVE_MARKER}" if is_live else ""
     
     box = []
     box.append("+---------------------------------------+")
@@ -144,81 +103,54 @@ def format_match_for_display(match, use_symbols=True):
     match_info_words = match_info.split()
     match_info_lines = []
     
-    # Start with live marker placeholder if needed - this will be replaced later
-    current_line = live_marker + " " if is_live else ""
+    # Use [LIVE] prefix for consistency
+    current_line = "[LIVE]" if is_live else ""
     
     for word in match_info_words:
-        if len((current_line + word).replace("{LIVE_MARKER}", "").replace("●", "")) <= box_width:
-            current_line += word + " "
-        else:
-            # Trim trailing space
-            match_info_lines.append(current_line.rstrip())
-            current_line = word + " "
-    
-    if current_line:
-        match_info_lines.append(current_line.rstrip())
-    
-    # Ensure lines are exactly box_width
-    for line in match_info_lines:
-        # Process line - replace marker with symbol or empty space to keep alignment
-        if "{LIVE_MARKER}" in line:
-            if use_symbols:
-                line = line.replace("{LIVE_MARKER}", "●")
-            else:
-                # For plain text, just use LIVE but keep same total width
-                visual_length = len(line.replace("{LIVE_MARKER}", ""))
-                if visual_length <= box_width - 4:  # "LIVE" is 4 chars
-                    line = line.replace("{LIVE_MARKER}", "LIVE")
-                else:
-                    line = line.replace("{LIVE_MARKER}", "L")  # Just use L if not enough space
+        # Calculate working line length
+        test_line = current_line + " " + word if current_line else word
         
-        # Calculate visual length (excluding our markers)
-        visual_line = line.replace("{LIVE_MARKER}", "")
-        padding = max(0, box_width - len(visual_line))
-        box.append(f"| {line.ljust(len(line) + padding)} |")
-    
-    box.append("|                                       |")
-    
-    # Format team names and scores with fixed width for uniformity
-    team1_name = team1[:20].ljust(20)
-    team2_name = team2[:20].ljust(20)
-    
-    team1_score = f"{team1_name} {score1}"
-    team2_score = f"{team2_name} {score2}"
-    
-    box.append(f"| {team1_score[:box_width].ljust(box_width)} |")
-    box.append(f"| {team2_score[:box_width].ljust(box_width)} |")
-    box.append("|                                       |")
-    
-    # Handle status - split into multiple lines if needed
-    status_words = status.split()
-    status_lines = []
-    current_line = ""
-    
-    for word in status_words:
-        if len(current_line + " " + word) <= box_width:
-            current_line += " " + word if current_line else word
+        if len(test_line) <= box_width:
+            current_line = test_line
         else:
-            status_lines.append(current_line)
+            # Trim trailing space and add to lines
+            match_info_lines.append(current_line)
             current_line = word
     
     if current_line:
-        status_lines.append(current_line)
+        match_info_lines.append(current_line)
+    
+    # Ensure lines are exactly box_width
+    for line in match_info_lines:
+        box.append(f"| {line.ljust(box_width)} |")
+    
+    box.append("|                                       |")
+    
+    # Add tournament info (in smaller tournaments, this helps identify matches)
+    if category:
+        # Truncate if too long
+        if len(category) > box_width:
+            category = category[:box_width-3] + "..."
+        box.append(f"| {category.ljust(box_width)} |")
+        box.append("|                                       |")
+    
+    # Format team names and scores with consistent width
+    team1_line = format_team_and_score(team1, score1)
+    team2_line = format_team_and_score(team2, score2)
+    
+    box.append(f"| {team1_line[:box_width].ljust(box_width)} |")
+    box.append(f"| {team2_line[:box_width].ljust(box_width)} |")
+    box.append("|                                       |")
+    
+    # Handle status - split into multiple lines if needed
+    status_lines = format_multiline_field(status, box_width)
     
     for line in status_lines:
         box.append(f"| {line.ljust(box_width)} |")
     
     box.append("+---------------------------------------+")
     
-    result = "\n".join(box)
-    
-    # Handle the LIVE marker replacement for HTML carefully
-    if is_live and use_symbols:
-        # We need to make sure the ● is wrapped in a span without breaking the box
-        result = result.replace("●", "<span class='live-indicator'>●</span>")
-    
-    return result
-
+    return "\n".join(box)
 
 # Add custom Jinja2 filters
 @app.on_event("startup")
@@ -231,7 +163,7 @@ async def add_jinja_filters():
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    """Serve the main page with cricket scores"""
+    """Serve the main page with cricket scores, grouped by status"""
     # Load the latest cricket data
     cricket_data = load_cricket_data()
     
@@ -247,31 +179,62 @@ async def root(request: Request):
         else:
             time_ago = f"{minutes_ago} minutes ago"
     
-    # Use the pre-sorted tournament order from the JSON
-    tournament_list = []
+    # Add cache control headers based on data freshness
+    cache_time = 60 if seconds_ago < 120 else 30
     
-    # Group matches by tournament in the order defined in tournaments list
-    for tournament_name in cricket_data.get('tournaments', []):
-        matches = [m for m in cricket_data['matches'] if m['category'] == tournament_name]
-        formatted_matches = [format_match_for_display(match) for match in matches]
+    # Group matches by status
+    live_matches = []
+    completed_matches = []
+    upcoming_matches = []
+    
+    for match in cricket_data['matches']:
+        # Enhanced status determination
+        match_status = match['match_status'] 
         
-        tournament_list.append({
-            'name': tournament_name,
-            'matches': formatted_matches
-        })
+        formatted_match = format_match_for_display(match)
+        
+        if match_status == "live":
+            live_matches.append(formatted_match)
+        elif match_status == "completed":
+            completed_matches.append(formatted_match)
+        else:  # scheduled or unknown
+            upcoming_matches.append(formatted_match)
     
-    return templates.TemplateResponse("index.html", {
+    response = templates.TemplateResponse("index.html", {
         "request": request,
-        "tournaments": tournament_list,
+        "live_matches": live_matches,
+        "completed_matches": completed_matches,
+        "upcoming_matches": upcoming_matches,
         "last_updated": cricket_data['last_updated'],
         "time_ago": time_ago
     })
+    
+    response.headers.update({"Cache-Control": f"max-age={cache_time}"})
+    return response
 
 @app.get("/plain.txt", response_class=PlainTextResponse)
 async def plain_text():
-    """Serve the cricket scores as plain text"""
+    """Serve the cricket scores as plain text, grouped by status"""
     # Load the latest cricket data
     cricket_data = load_cricket_data()
+    
+    # Group matches by status
+    live_matches = []
+    completed_matches = []
+    upcoming_matches = []
+    
+    for match in cricket_data['matches']:
+        # Enhanced status determination
+        match_status = match['match_status']
+        
+        formatted_match = format_match_for_display(match, use_symbols=False)
+        
+        if match_status == "live":
+            live_matches.append(formatted_match)
+        elif match_status == "completed":
+            completed_matches.append(formatted_match)
+        else:  # scheduled or unknown
+            upcoming_matches.append(formatted_match)
     
     # Build the plain text output
     output = []
@@ -279,19 +242,32 @@ async def plain_text():
     output.append("Live cricket scores in plain text")
     output.append("=================================================================")
     
-    # Use the pre-sorted tournament order from the JSON
-    for tournament_name in cricket_data.get('tournaments', []):
-        matches = [m for m in cricket_data['matches'] if m['category'] == tournament_name]
-        
-        # Add a blank line between tournaments
+    # Add live matches
+    if live_matches:
         output.append("")
-        output.append(tournament_name)
-        
-        # Add each match in this tournament
-        for match in matches:
-            # Use format_match_for_display but change the live indicator to be text-based
-            formatted_match = format_match_for_display(match, use_symbols=False)
-            output.append(formatted_match)
+        output.append("LIVE")
+        output.append("")
+        for match in live_matches:
+            output.append(match)
+            output.append("")  # Add space between matches
+    
+    # Add upcoming matches
+    if upcoming_matches:
+        output.append("")
+        output.append("UPCOMING")
+        output.append("")
+        for match in upcoming_matches:
+            output.append(match)
+            output.append("")  # Add space between matches
+    
+    # Add completed matches
+    if completed_matches:
+        output.append("")
+        output.append("COMPLETED")
+        output.append("")
+        for match in completed_matches:
+            output.append(match)
+            output.append("")  # Add space between matches
     
     output.append("=================================================================")
     output.append(f"Last updated: {cricket_data['last_updated']}")
@@ -300,6 +276,13 @@ async def plain_text():
     # Join all lines and return
     return "\n".join(output)
 
+@app.get("/about", response_class=HTMLResponse)
+async def about(request: Request):
+    """About page with information about the site"""
+    return templates.TemplateResponse("about.html", {
+        "request": request
+    })
+
 async def update_cricket_data():
     """Background task to update cricket data every 2 minutes"""
     while True:
@@ -307,13 +290,19 @@ async def update_cricket_data():
         try:
             # Fetch the latest data (data_fetcher now handles saving to file)
             print(f"[{current_time}] Fetching cricket data...")
-            fetch_live_scores()
-            print(f"[{current_time}] Data updated")
+            cricket_data = fetch_live_scores()
+            
+            # Adaptive refresh timing based on live matches
+            live_matches = sum(1 for match in cricket_data['matches'] if match['is_live'])
+            wait_time = 90 if live_matches > 0 else 180  # 1.5 mins or 3 mins
+            
+            print(f"[{current_time}] Data updated. Found {live_matches} live matches. Next update in {wait_time} seconds.")
         except Exception as e:
             print(f"[{current_time}] Error updating cricket data: {e}")
+            wait_time = 120  # Default to 2 minutes on error
         
-        # Wait for 2 minutes before updating again
-        await asyncio.sleep(120)
+        # Wait before updating again
+        await asyncio.sleep(wait_time)
 
 @app.on_event("startup")
 async def startup_event():
