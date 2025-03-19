@@ -7,6 +7,7 @@ import asyncio
 from pathlib import Path
 from datetime import datetime
 import time
+from itertools import groupby
 
 from data_fetcher import fetch_live_scores
 
@@ -25,7 +26,6 @@ def format_match_for_display(match):
     """Format a match into a nice ASCII box with proper line breaks"""
     
     # Get match data
-    category = match['category']
     match_info = match['match_info']
     team1 = match['team1']
     team2 = match['team2']
@@ -39,8 +39,6 @@ def format_match_for_display(match):
     
     box = []
     box.append("+---------------------------------------+")
-    box.append(f"| {category[:box_width].ljust(box_width)} |")
-    box.append("|                                       |")
     
     # Handle match info - split into multiple lines if needed
     match_info_words = f"{is_live} {match_info}".split()
@@ -116,14 +114,22 @@ async def root(request: Request):
         else:
             time_ago = f"{minutes_ago} minutes ago"
     
-    # Format matches into ASCII boxes
-    formatted_matches = []
-    for match in cricket_data['matches']:
-        formatted_matches.append(format_match_for_display(match))
+    # Group matches by tournament
+    tournaments = []
+    sorted_matches = sorted(cricket_data['matches'], key=lambda m: m['category'])
+    
+    for category, matches in groupby(sorted_matches, key=lambda m: m['category']):
+        match_list = list(matches)
+        formatted_matches = [format_match_for_display(match) for match in match_list]
+        
+        tournaments.append({
+            'name': category,
+            'matches': formatted_matches
+        })
     
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "match_rows": formatted_matches,
+        "tournaments": tournaments,
         "last_updated": cricket_data['last_updated'],
         "time_ago": time_ago
     })

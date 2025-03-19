@@ -20,16 +20,23 @@
         .header, .footer {
             text-align: center;
         }
+        .tournament {
+            margin-bottom: 20px;
+        }
+        .tournament-header {
+            text-align: center;
+            margin: 30px 0 10px 0;
+        }
         .match-row {
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-around;
+            justify-content: flex-start;
         }
         .match-col {
             font-family: monospace;
             white-space: pre;
             line-height: 1.2;
-            margin: 0 5px 20px 5px;
+            margin: 0 5px 10px 5px;
             overflow: hidden;
             font-size: 14px;
             width: calc(33.33% - 10px);
@@ -62,11 +69,19 @@
             </pre>
         </div>
 
-        <div class="match-row">
-            {% for match in match_rows %}
-            <div class="match-col">{{ match | replace("●", "<span class='live'>●</span>") | safe }}</div>
-            {% endfor %}
+        {% for tournament in tournaments %}
+        <div class="tournament">
+            <div class="tournament-header">
+                <pre>{{ tournament.name }}</pre>
+                <pre>Schedule   Standings   Teams</pre>
+            </div>
+            <div class="match-row">
+                {% for match in tournament.matches %}
+                <div class="match-col">{{ match | replace("●", "<span class='live'>●</span>") | safe }}</div>
+                {% endfor %}
+            </div>
         </div>
+        {% endfor %}
 
         <div class="footer">
             <pre>
