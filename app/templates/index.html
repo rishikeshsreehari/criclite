@@ -28,7 +28,6 @@
             max-width: 100%;
             overflow-x: hidden;
         }
-        /* Enhanced title styling */
         .site-title {
             font-size: 28px;
             font-weight: bold;
@@ -84,10 +83,11 @@
         }
         .footer-links a {
             color: #000;
-            text-decoration: none;
-        }
-        .footer-links a:hover {
             text-decoration: underline;
+        }
+
+        .footer-links a:hover {
+            text-decoration: none ;
         }
         .builder {
             margin-top: 5px;
@@ -160,6 +160,7 @@
 =========================================</pre>
         <pre>
 Last updated: {{ last_updated }} ({{ time_ago }})
+{% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.{% endif %}
 Page auto-refreshes every 2 minutes.</pre>
 
         <div class="footer-links">
@@ -170,7 +171,7 @@ Page auto-refreshes every 2 minutes.</pre>
         </div>
 
         <div class="builder">
-            Built by <a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank">Rishikesh</a>
+            Built by <a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank" style="text-decoration: underline; color: black;">Rishikesh</a>
         </div>
     </div>
 </body>
