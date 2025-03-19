@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="120">
+    <title>CricLite - Minimalist Cricket Scores</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 10px;
+            background-color: #fff;
+            color: #000;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header, .footer {
+            text-align: center;
+        }
+        .match-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+        .match-col {
+            font-family: monospace;
+            white-space: pre;
+            line-height: 1.2;
+            margin: 0 5px 20px 5px;
+            overflow: hidden;
+            font-size: 14px;
+            width: calc(33.33% - 10px);
+            min-width: 300px;
+        }
+        .live {
+            color: #f00;
+        }
+        
+        @media (max-width: 1000px) {
+            .match-col {
+                width: calc(50% - 10px);
+            }
+        }
+        
+        @media (max-width: 650px) {
+            .match-col {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <pre>
+                        CRICLITE.COM
+                 MINIMALIST CRICKET SCORES
+=================================================================
+            </pre>
+        </div>
+
+        <div class="match-row">
+            {% for match in match_rows %}
+            <div class="match-col">{{ match | replace("●", "<span class='live'>●</span>") | safe }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="footer">
+            <pre>
+=================================================================
+Last updated: {{ last_updated }} ({{ time_ago }})
+Page auto-refreshes every 2 minutes.
+            </pre>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CricLite - Cricket Scores</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 14px;
+            margin: 0;
+            padding: 20px;
+            background-color: #ffffff; /* Light mode */
+            color: #000000;
+            line-height: 1.8;
+        }
+        /* Centered Container */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Tournament Section */
+        .tournament {
+            margin-top: 25px;
+        }
+
+        .tournament-title {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #000;
+        }
+
+        /* Match Box */
+        .match {
+            margin-bottom: 15px;
+            margin-left: 15px; /* Indented for hierarchy */
+        }
+
+        /* Live Matches */
+        .live {
+            color: #ff0000;
+            font-weight: bold;
+        }
+
+        /* Dark Mode Support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0d1117; /* Dark mode background */
+                color: #e8e6e3; /* Light text */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- Header -->
+        <header>
+            <h1>CricLite</h1>
+            <h2>Minimalist Cricket Scores</h2>
+        </header>
+
+        <!-- Twenty20 Internationals -->
+        <section class="tournament">
+            <h3 class="tournament-title">Twenty20 Internationals</h3>
+            <div class="match">
+                <span class="live">LIVE</span><br>
+                Mar 19, 2025 - 2nd T20I at Namibia Cricket Ground, Windhoek<br>
+                Namibia<br>
+                Canada<br>
+                Match scheduled to begin in 2 hours 27 mins (14:00 local | 12:00 GMT | 16:00 +04)
+            </div>
+        </section>
+
+        <!-- Durham tour of Zimbabwe -->
+        <section class="tournament">
+            <h3 class="tournament-title">Durham Tour of Zimbabwe</h3>
+            <div class="match">
+                <span class="live">LIVE</span><br>
+                Mar 18-20, 2025 - 2nd Match at Takashinga Sports Club, Highfield, Harare<br>
+                Zimbabwe A 151<br>
+                Durham 158/7 (50 ov)<br>
+                Durham lead by 7 runs with 3 wickets remaining in the 1st innings
+            </div>
+        </section>
+
+        <!-- Dhaka Premier Division Cricket League -->
+        <section class="tournament">
+            <h3 class="tournament-title">Dhaka Premier Division Cricket League</h3>
+            <div class="match">
+                Mar 19, 2025 - 36th Match at Shere Bangla National Stadium, Mirpur<br>
+                Brothers Union<br>
+                Gulshan Cricket Club<br>
+                Match scheduled to begin at 09:00 local time (03:00 GMT | 07:00 +04)
+            </div>
+            <div class="match">
+                Mar 19, 2025 - 35th Match at Bangladesh Krira Shikkha Protisthan No 3 Ground, Savar<br>
+                Partex Sporting Club<br>
+                Tigers<br>
+                Match scheduled to begin at 09:00 local time (03:00 GMT | 07:00 +04)
+            </div>
+            <div class="match">
+                Mar 19, 2025 - 34th Match at Bangladesh Krira Shikkha Protisthan No 4 Ground, Savar<br>
+                Shinepukur Cricket Club<br>
+                Agrani Bank Cricket Club<br>
+                Match scheduled to begin at 09:00 local time (03:00 GMT | 07:00 +04)
+            </div>
+        </section>
+
+        <!-- National T20 Cup -->
+        <section class="tournament">
+            <h3 class="tournament-title">National T20 Cup</h3>
+            <div class="match">
+                Mar 19, 2025 - 21st Match, Group B at Gaddafi Stadium, Lahore (day/night)<br>
+                Bahawalpur Region<br>
+                Islamabad Region<br>
+                Match scheduled to begin in 1 hour 57 mins (16:30 local | 11:30 GMT | 15:30 +04)
+            </div>
+            <div class="match">
+                Mar 19, 2025 - 23rd Match, Group C at Iqbal Stadium, Faisalabad (night)<br>
+                Abbottabad Region<br>
+                Faisalabad Region<br>
+                Match scheduled to begin at 19:00 local time (14:00 GMT | 18:00 +04)
+            </div>
+        </section>
+
+        <!-- Men's PM Cup -->
+        <section class="tournament">
+            <h3 class="tournament-title">Men's PM Cup</h3>
+            <div class="match">
+                <span class="live">LIVE</span><br>
+                Mar 19, 2025 - 26th Match at Siddhartha Cricket Stadium, Siddharthanagar<br>
+                Gandaki Province 92 (23.2/50 ov)<br>
+                Nepal Police Club 94/3 (16/50 ov)<br>
+                Nepal Police Club won by 7 wickets (with 204 balls remaining)
+            </div>
+            <div class="match">
+                <span class="live">LIVE</span><br>
+                Mar 19, 2025 - 27th Match at Extra Tech Oval, Bhairahawa<br>
+                Lumbini Province 116 (44.1/50 ov)<br>
+                Sudur Paschim Province 117/5 (31.1/50 ov)<br>
+                Sudur Paschim Province won by 5 wickets (with 113 balls remaining)
+            </div>
+            <div class="match">
+                <span class="live">LIVE</span><br>
+                Mar 19, 2025 - 28th Match at Deukhuri International Cricket Stadium, Lamahi<br>
+                Tribhuwan Army Club 217/7 (50 ov)<br>
+                Madhesh Province 161/5 (38.5/50 ov)<br>
+                Madhesh Province require another 57 runs with 5 wickets and 11.1 overs remaining
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            Last updated: Mar 19, 2025 at 13:00 GMT<br>
+            Auto-refreshes every 2 minutes.
+        </footer>
+    </div>
+</body>
+</html>
