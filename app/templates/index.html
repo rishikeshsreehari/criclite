@@ -43,7 +43,7 @@
             min-width: 300px;
         }
         .live {
-            color: #f00;
+            font-weight: bold;
         }
         .footer-links {
             display: flex;
@@ -92,7 +92,7 @@ Live cricket scores in plain text
             </div>
             <div class="match-row">
                 {% for match in tournament.matches %}
-                <div class="match-col">{{ match | replace("●", "<span class='live'>●</span>") | safe }}</div>
+                <div class="match-col">{{ match | replace("●", "<span class='live'>LIVE</span>") | safe }}</div>
                 {% endfor %}
             </div>
         </div>
@@ -105,12 +105,14 @@ Last updated: {{ last_updated }} ({{ time_ago }})
 Page auto-refreshes every 2 minutes.
             </pre>
             <div class="footer-links">
-                <a href="#">Source</a>
-                <a href="#">About</a>
-                <a href="#">Support</a>
+                <a href="/about">About</a>
+                <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
+                <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
             </div>
+            <a href="/plain.txt" target="_blank">Plain Text Version</a>
+
             <div class="builder">
-                Built by Rishikesh
+                Built by <a href="https://rishikeshs.com" target="_blank">Rishikesh</a>
             </div>
         </div>
     </div>
