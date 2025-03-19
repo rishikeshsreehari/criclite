@@ -40,88 +40,184 @@ def format_match_for_display(match, use_symbols=True):
     """Format a match into a nice ASCII box with proper line breaks"""
     
     # Get match data
-    match_info = match['match_info'].replace("\n", " ").strip()
+    match_info = match['match_info']
     team1 = match['team1']
     team2 = match['team2']
     score1 = match['score1'] if match['score1'] else ""
     score2 = match['score2'] if match['score2'] else ""
     status = match['status']
     
-    # Fixed box dimensions
+    # Use appropriate status indicator based on preference
+    if use_symbols:
+        is_live = "●" if match['is_live'] else "○"
+        is_live_prefix = f"{is_live} "
+    else:
+        # For plain text, use shorter indicator to maintain alignment
+        is_live = "LIVE" if match['is_live'] else ""
+        # Add the status at the beginning with proper spacing to maintain alignment
+        is_live_prefix = f"{is_live} " if is_live else ""
+    
+    # Create a fixed width box
     box_width = 37  # Width of content inside the box
     
-    # Create the box content
     box = []
     box.append("+---------------------------------------+")
     
-    # Prepare the match info with live indicator
-    if use_symbols:
-        indicator = "● " if match['is_live'] else "○ "
-    else:
-        indicator = "LIVE " if match['is_live'] else ""
+    # Handle match info - split into multiple lines if needed
+    match_info_words = match_info.split()
+    match_info_lines = []
+    current_line = is_live_prefix  # Start with live indicator
     
-    # Combine indicator with match info
-    full_info = indicator + match_info
-    
-    # Break info into lines that fit the box width
-    words = full_info.split()
-    lines = []
-    current_line = ""
-    
-    for word in words:
-        # If adding this word would exceed box width, start a new line
-        if len(current_line) + len(word) + 1 > box_width:
-            lines.append(current_line)
-            current_line = word
+    for word in match_info_words:
+        if len(current_line + word) <= box_width:
+            current_line += word + " "
         else:
-            # Add word to current line (with space if not first word)
-            if current_line:
-                current_line += " " + word
-            else:
-                current_line = word
+            # Trim trailing space
+            match_info_lines.append(current_line.rstrip())
+            current_line = word + " "
     
-    # Add the last line if there's anything left
     if current_line:
-        lines.append(current_line)
+        match_info_lines.append(current_line.rstrip())
     
-    # Add each info line to the box
-    for line in lines:
+    # Ensure lines are exactly box_width
+    for line in match_info_lines:
         box.append(f"| {line.ljust(box_width)} |")
     
-    # Add a blank line before teams
     box.append("|                                       |")
     
-    # Add teams and scores
-    team1_line = f"{team1[:20].ljust(20)} {score1}"
-    team2_line = f"{team2[:20].ljust(20)} {score2}"
+    # Format team names and scores with fixed width for uniformity
+    team1_name = team1[:20].ljust(20)
+    team2_name = team2[:20].ljust(20)
     
-    box.append(f"| {team1_line[:box_width].ljust(box_width)} |")
-    box.append(f"| {team2_line[:box_width].ljust(box_width)} |")
+    team1_score = f"{team1_name} {score1}"
+    team2_score = f"{team2_name} {score2}"
     
-    # Add a blank line before status
+    box.append(f"| {team1_score[:box_width].ljust(box_width)} |")
+    box.append(f"| {team2_score[:box_width].ljust(box_width)} |")
     box.append("|                                       |")
     
-    # Add status with wrapping
-    words = status.split()
+    # Handle status - split into multiple lines if needed
+    status_words = status.split()
+    status_lines = []
     current_line = ""
     
-    for word in words:
-        if len(current_line) + len(word) + 1 > box_width:
-            box.append(f"| {current_line.ljust(box_width)} |")
-            current_line = word
+    for word in status_words:
+        if len(current_line + " " + word) <= box_width:
+            current_line += " " + word if current_line else word
         else:
-            if current_line:
-                current_line += " " + word
-            else:
-                current_line = word
+            status_lines.append(current_line)
+            current_line = word
     
     if current_line:
-        box.append(f"| {current_line.ljust(box_width)} |")
+        status_lines.append(current_line)
     
-    # Close the box
+    for line in status_lines:
+        box.append(f"| {line.ljust(box_width)} |")
+    
     box.append("+---------------------------------------+")
     
     return "\n".join(box)
+
+
+def format_match_for_display(match, use_symbols=True):
+    """Format a match into a nice ASCII box with proper line breaks"""
+    
+    # Get match data
+    match_info = match['match_info']
+    team1 = match['team1']
+    team2 = match['team2']
+    score1 = match['score1'] if match['score1'] else ""
+    score2 = match['score2'] if match['score2'] else ""
+    status = match['status']
+    is_live = match['is_live']
+    
+    # Create a fixed width box
+    box_width = 37  # Width of content inside the box
+    
+    # Create a marker for where to insert the LIVE indicator
+    live_marker = "{LIVE_MARKER}" if is_live else ""
+    
+    box = []
+    box.append("+---------------------------------------+")
+    
+    # Handle match info - split into multiple lines if needed
+    match_info_words = match_info.split()
+    match_info_lines = []
+    
+    # Start with live marker placeholder if needed - this will be replaced later
+    current_line = live_marker + " " if is_live else ""
+    
+    for word in match_info_words:
+        if len((current_line + word).replace("{LIVE_MARKER}", "").replace("●", "")) <= box_width:
+            current_line += word + " "
+        else:
+            # Trim trailing space
+            match_info_lines.append(current_line.rstrip())
+            current_line = word + " "
+    
+    if current_line:
+        match_info_lines.append(current_line.rstrip())
+    
+    # Ensure lines are exactly box_width
+    for line in match_info_lines:
+        # Process line - replace marker with symbol or empty space to keep alignment
+        if "{LIVE_MARKER}" in line:
+            if use_symbols:
+                line = line.replace("{LIVE_MARKER}", "●")
+            else:
+                # For plain text, just use LIVE but keep same total width
+                visual_length = len(line.replace("{LIVE_MARKER}", ""))
+                if visual_length <= box_width - 4:  # "LIVE" is 4 chars
+                    line = line.replace("{LIVE_MARKER}", "LIVE")
+                else:
+                    line = line.replace("{LIVE_MARKER}", "L")  # Just use L if not enough space
+        
+        # Calculate visual length (excluding our markers)
+        visual_line = line.replace("{LIVE_MARKER}", "")
+        padding = max(0, box_width - len(visual_line))
+        box.append(f"| {line.ljust(len(line) + padding)} |")
+    
+    box.append("|                                       |")
+    
+    # Format team names and scores with fixed width for uniformity
+    team1_name = team1[:20].ljust(20)
+    team2_name = team2[:20].ljust(20)
+    
+    team1_score = f"{team1_name} {score1}"
+    team2_score = f"{team2_name} {score2}"
+    
+    box.append(f"| {team1_score[:box_width].ljust(box_width)} |")
+    box.append(f"| {team2_score[:box_width].ljust(box_width)} |")
+    box.append("|                                       |")
+    
+    # Handle status - split into multiple lines if needed
+    status_words = status.split()
+    status_lines = []
+    current_line = ""
+    
+    for word in status_words:
+        if len(current_line + " " + word) <= box_width:
+            current_line += " " + word if current_line else word
+        else:
+            status_lines.append(current_line)
+            current_line = word
+    
+    if current_line:
+        status_lines.append(current_line)
+    
+    for line in status_lines:
+        box.append(f"| {line.ljust(box_width)} |")
+    
+    box.append("+---------------------------------------+")
+    
+    result = "\n".join(box)
+    
+    # Handle the LIVE marker replacement for HTML carefully
+    if is_live and use_symbols:
+        # We need to make sure the ● is wrapped in a span without breaking the box
+        result = result.replace("●", "<span class='live-indicator'>●</span>")
+    
+    return result
 
 
 # Add custom Jinja2 filters

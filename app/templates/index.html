@@ -30,7 +30,8 @@
         .match-row {
             display: flex;
             flex-wrap: wrap;
-            justify-content: flex-start;
+            justify-content: center;
+            gap: 10px; /* Consistent gap between boxes */
         }
         .match-col {
             font-family: monospace;
@@ -39,10 +40,15 @@
             margin: 0 5px 10px 5px;
             overflow: hidden;
             font-size: 14px;
-            width: calc(33.33% - 10px);
-            min-width: 300px;
+            width: 345px;  /* Set to exact width to match box size */
+            min-width: 345px;
         }
         .live {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        .live-indicator {
+            color: #ff0000;
             font-weight: bold;
         }
         .footer-links {
@@ -62,20 +68,77 @@
             margin-top: 5px;
         }
         
-        @media (max-width: 1000px) {
+        /* Make sure the entire box has consistent size */
+        pre {
+            margin: 0;
+        }
+        
+        .filter-controls {
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        /* Dark mode support */
+        :root {
+            --bg-color: #fff;
+            --text-color: #000;
+            --link-color: #000;
+        }
+        
+        .dark-mode {
+            --bg-color: #121212;
+            --text-color: #eee;
+            --link-color: #9dc6ff;
+        }
+        
+        body.dark-mode {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        
+        body.dark-mode .footer-links a {
+            color: var(--link-color);
+        }
+        
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            body:not(.light-mode) {
+                background-color: #121212;
+                color: #eee;
+            }
+            body:not(.light-mode) .footer-links a {
+                color: #9dc6ff;
+            }
+        }
+        
+        @media (max-width: 1100px) {
+            .match-row {
+                justify-content: center;
+            }
             .match-col {
-                width: calc(50% - 10px);
+                width: 345px; /* Keep exact width even on smaller screens */
             }
         }
         
         @media (max-width: 650px) {
             .match-col {
                 width: 100%;
+                min-width: 300px;
             }
         }
     </style>
 </head>
 <body>
+    <button onclick="toggleDarkMode()" class="theme-toggle">🌙</button>
     <div class="container">
         <div class="header">
             <pre>
@@ -85,6 +148,16 @@ Live cricket scores in plain text
             </pre>
         </div>
 
+        <div class="filter-controls">
+            <label for="filter">Show: </label>
+            <select id="filter" onchange="filterMatches()">
+                <option value="all">All matches</option>
+                <option value="live">Live matches only</option>
+                <option value="completed">Completed matches</option>
+                <option value="scheduled">Upcoming matches</option>
+            </select>
+        </div>
+
         {% for tournament in tournaments %}
         <div class="tournament">
             <div class="tournament-header">
@@ -92,7 +165,7 @@ Live cricket scores in plain text
             </div>
             <div class="match-row">
                 {% for match in tournament.matches %}
-                <div class="match-col">{{ match | replace("●", "<span class='live'>LIVE</span>") | safe }}</div>
+                <div class="match-col">{{ match | safe }}</div>
                 {% endfor %}
             </div>
         </div>
@@ -116,5 +189,73 @@ Page auto-refreshes every 2 minutes.
             </div>
         </div>
     </div>
+    
+    <script>
+    function filterMatches() {
+        const filter = document.getElementById('filter').value;
+        const tournaments = document.querySelectorAll('.tournament');
+        
+        tournaments.forEach(tournament => {
+            const matchCols = tournament.querySelectorAll('.match-col');
+            let visibleCount = 0;
+            
+            matchCols.forEach(col => {
+                if (filter === 'all') {
+                    col.style.display = 'block';
+                    visibleCount++;
+                    return;
+                }
+                
+                const isLive = col.innerHTML.includes('live-indicator') || col.innerHTML.includes('LIVE');
+                const isCompleted = col.textContent.includes('won by');
+                const isScheduled = col.textContent.includes('scheduled to begin');
+                
+                if ((filter === 'live' && isLive) ||
+                    (filter === 'completed' && isCompleted) ||
+                    (filter === 'scheduled' && isScheduled)) {
+                    col.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    col.style.display = 'none';
+                }
+            });
+            
+            // Hide the tournament header if no matches are visible
+            const tournamentHeader = tournament.querySelector('.tournament-header');
+            if (tournamentHeader) {
+                tournamentHeader.style.display = visibleCount > 0 ? 'block' : 'none';
+            }
+        });
+    }
+    
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        document.body.classList.remove('light-mode');
+        const button = document.querySelector('.theme-toggle');
+        if (document.body.classList.contains('dark-mode')) {
+            button.textContent = '☀️';
+            localStorage.setItem('theme', 'dark');
+        } else {
+            button.textContent = '🌙';
+            localStorage.setItem('theme', 'light');
+            document.body.classList.add('light-mode');
+        }
+    }
+    
+    // Check user preference when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.querySelector('.theme-toggle').textContent = '☀️';
+        } else if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            // No saved preference but OS preference is dark
+            document.body.classList.add('dark-mode');
+            document.querySelector('.theme-toggle').textContent = '☀️';
+        }
+    });
+    </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 {
-  "last_updated": "2025-03-19 11:47:37 GMT",
-  "last_updated_timestamp": 1742384857.9699223,
+  "last_updated": "2025-03-19 12:05:37 GMT",
+  "last_updated_timestamp": 1742385937.5203319,
   "matches": [
     {
       "category": "Twenty20 Internationals",
@@ -12,7 +12,7 @@
       "score1": "",
       "team2": "Canada",
       "score2": "",
-      "status": "Namibia won the toss and elected to field",
+      "status": "Match delayed by a wet outfield - Namibia won the toss and elected to field",
       "link": "https://www.espncricinfo.com/series/1474406/game/1476795/namibia-vs-canada-2nd-t20i-"
     },
     {
@@ -51,7 +51,7 @@
       "score1": "Region",
       "team2": "Faisalabad",
       "score2": "Region",
-      "status": "Match scheduled to begin in 2 hours 16 mins\n (19:00 local | 14:00 GMT | 18:00 +04)",
+      "status": "Match scheduled to begin in 1 hour 59 mins\n (19:00 local | 14:00 GMT | 18:00 +04)",
       "link": "https://www.espncricinfo.com/series/8660/game/1476897/abbottabad-region-vs-faisalabad-region-23rd-match-group-c-national-t20-cup-2024-25"
     },
     {
@@ -100,10 +100,10 @@
       "tournament_priority": 6,
       "match_info": "Mar 18-20, 2025\n-\n\n\n     2nd Match at Takashinga Sports Club, Highfield, Harare",
       "team1": "Zimbabwe",
-      "score1": "A    151 & 10/2 (7 ov)",
+      "score1": "A    151 & 18/3 (10.5 ov)",
       "team2": "Durham",
       "score2": "185",
-      "status": "Zimbabwe A trail by 24 runs with 8 wickets remaining",
+      "status": "Zimbabwe A trail by 16 runs with 7 wickets remaining",
       "link": "https://www.espncricinfo.com/series/1476749/game/1476758/zimbabwe-a-vs-durham-2nd-match-"
     },
     {
