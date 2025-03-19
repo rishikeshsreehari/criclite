@@ -80,8 +80,9 @@ def format_multiline_field(text, box_width):
     
     return [line.ljust(box_width) for line in lines]
 
+
 def format_match_for_display(match, use_symbols=True):
-    """Format a match into a nice ASCII box with proper line breaks and consistent dimensions"""
+    """Format a match into a nice ASCII box with consistent dimensions"""
     
     # Get match data
     match_info = match['match_info']
@@ -93,64 +94,118 @@ def format_match_for_display(match, use_symbols=True):
     is_live = match['is_live']
     category = match['category']
     
-    # Create a fixed width box
-    box_width = 37  # Width of content inside the box
+    # Fixed dimensions - these should never change
+    OUTER_WIDTH = 41  # Total width including borders
+    INNER_WIDTH = 37  # Content width
+    STANDARD_HEIGHT = 12  # Standard number of lines for each box
     
-    box = []
-    box.append("+---------------------------------------+")
+    # Create a standard box template
+    top_border = "+" + "-" * (OUTER_WIDTH - 2) + "+"
+    bottom_border = top_border
+    empty_line = "| " + " " * INNER_WIDTH + " |"
     
-    # Handle match info - split into multiple lines if needed
-    match_info_words = match_info.split()
-    match_info_lines = []
+    # Build the box content
+    box_lines = []
+    box_lines.append(top_border)
     
-    # Use [LIVE] prefix for consistency
-    current_line = "[LIVE]" if is_live else ""
+    # Format match info - always prefix with [LIVE] if live
+    info_prefix = "[LIVE] " if is_live else ""
+    match_info_cleaned = match_info.replace("\n", " ").strip()
     
-    for word in match_info_words:
-        # Calculate working line length
-        test_line = current_line + " " + word if current_line else word
-        
-        if len(test_line) <= box_width:
-            current_line = test_line
+    # Split match info into lines that fit
+    info_lines = []
+    current_line = info_prefix
+    
+    for word in match_info_cleaned.split():
+        if len(current_line + word) + 1 <= INNER_WIDTH:
+            current_line += (word + " ")
         else:
-            # Trim trailing space and add to lines
-            match_info_lines.append(current_line)
-            current_line = word
+            info_lines.append(current_line.strip())
+            current_line = word + " "
     
-    if current_line:
-        match_info_lines.append(current_line)
+    if current_line.strip():
+        info_lines.append(current_line.strip())
     
-    # Ensure lines are exactly box_width
-    for line in match_info_lines:
-        box.append(f"| {line.ljust(box_width)} |")
+    # Add match info lines to box
+    for line in info_lines:
+        padded_line = line.ljust(INNER_WIDTH)
+        box_lines.append(f"| {padded_line} |")
     
-    box.append("|                                       |")
+    # Add empty line
+    box_lines.append(empty_line)
     
-    # Add tournament info (in smaller tournaments, this helps identify matches)
+    # Add tournament category
     if category:
-        # Truncate if too long
-        if len(category) > box_width:
-            category = category[:box_width-3] + "..."
-        box.append(f"| {category.ljust(box_width)} |")
-        box.append("|                                       |")
+        category_line = category[:INNER_WIDTH].ljust(INNER_WIDTH)
+        box_lines.append(f"| {category_line} |")
+        box_lines.append(empty_line)
     
-    # Format team names and scores with consistent width
-    team1_line = format_team_and_score(team1, score1)
-    team2_line = format_team_and_score(team2, score2)
+    # Team 1 with score
+    team1_name = team1[:20].ljust(20)  # Fixed width for team name
+    score1_display = score1[:16] if score1 else ""  # Limit score width
+    team1_line = f"{team1_name} {score1_display}"
+    team1_line = team1_line[:INNER_WIDTH].ljust(INNER_WIDTH)
+    box_lines.append(f"| {team1_line} |")
     
-    box.append(f"| {team1_line[:box_width].ljust(box_width)} |")
-    box.append(f"| {team2_line[:box_width].ljust(box_width)} |")
-    box.append("|                                       |")
+    # Team 2 with score
+    team2_name = team2[:20].ljust(20)  # Fixed width for team name
+    score2_display = score2[:16] if score2 else ""  # Limit score width
+    team2_line = f"{team2_name} {score2_display}"
+    team2_line = team2_line[:INNER_WIDTH].ljust(INNER_WIDTH)
+    box_lines.append(f"| {team2_line} |")
     
-    # Handle status - split into multiple lines if needed
-    status_lines = format_multiline_field(status, box_width)
+    # Add empty line
+    box_lines.append(empty_line)
     
+    # Status lines
+    status_lines = []
+    current_line = ""
+    
+    for word in status.split():
+        if len(current_line + word) + 1 <= INNER_WIDTH:
+            current_line += (word + " ")
+        else:
+            status_lines.append(current_line.strip())
+            current_line = word + " "
+    
+    if current_line.strip():
+        status_lines.append(current_line.strip())
+    
+    # Add status lines
     for line in status_lines:
-        box.append(f"| {line.ljust(box_width)} |")
+        padded_line = line.ljust(INNER_WIDTH)
+        box_lines.append(f"| {padded_line} |")
     
-    box.append("+---------------------------------------+")
+    # Add bottom border
+    box_lines.append(bottom_border)
     
-    return "\n".join(box)
+    # Normalize box height by adding or removing empty lines
+    current_height = len(box_lines)
+    
+    if current_height < STANDARD_HEIGHT:
+        # Box is too short, add empty lines before the bottom border
+        bottom_border = box_lines.pop()  # Remove bottom border
+        while len(box_lines) < STANDARD_HEIGHT - 1:
+            box_lines.append(empty_line)
+        box_lines.append(bottom_border)  # Add bottom border back
+    elif current_height > STANDARD_HEIGHT:
+        # Box is too tall, preserve important elements and trim the middle
+        # Keep: top border, first 2 lines (match info), category, teams, last 2 lines (result)
+        top_section = box_lines[:4]  # Top border + match info + empty line
+        middle_section = box_lines[4:-3]  # Category, teams, etc.
+        bottom_section = box_lines[-3:]  # Status and bottom border
+        
+        # Calculate how many middle lines we can keep
+        middle_lines_to_keep = STANDARD_HEIGHT - len(top_section) - len(bottom_section)
+        
+        # Rebuild the box
+        box_lines = top_section + middle_section[:middle_lines_to_keep] + bottom_section
+    
+    # Convert to a string with line breaks
+    box_text = "\n".join(box_lines)
+    
+    return box_text
+
 
 # Add custom Jinja2 filters
 @app.on_event("startup")
