@@ -25,13 +25,23 @@ PRIORITY_CATEGORIES = {
     "Pakistan Super League": 3,
     "Caribbean Premier League": 3,
     "The Hundred": 3,
-    "National T20 Cup": 5,
     "Durham tour of Zimbabwe": 6,
     "Men's PM Cup": 7,
-    "Dhaka Premier Division Cricket League": 8,
     # Add others as needed
     "default": 10
 }
+
+# Define tournaments to be ignored
+IGNORED_TOURNAMENTS = [
+    "National Super League 4-Day Tournament",
+    "CSA 4-Day Series Division 1",
+    "CSA 4-Day Series Division 2",
+    "National T20 Cup",
+    "Men's PM Cup" , 
+
+
+
+]
 
 def determine_match_status(status_text, is_live_icon_present):
     """
@@ -52,8 +62,17 @@ def determine_match_status(status_text, is_live_icon_present):
     else:
         return "unknown"
 
-def fetch_live_scores():
-    """Fetch live cricket scores from Cricinfo live matches page and store in JSON"""
+def fetch_live_scores(ignore_list=None):
+    """
+    Fetch live cricket scores from Cricinfo live matches page and store in JSON
+    
+    Args:
+        ignore_list: Optional list of tournament names to ignore
+    """
+    # Use default ignore list if none provided
+    if ignore_list is None:
+        ignore_list = IGNORED_TOURNAMENTS
+        
     url = "https://www.espncricinfo.com/ci/engine/match/index/live.html"
     
     # Set headers to mimic a browser request
@@ -85,6 +104,11 @@ def fetch_live_scores():
         
         for section in match_sections:
             category = section.find('h2').text.strip()
+            
+            # Skip ignored tournaments
+            if category in ignore_list:
+                print(f"Skipping ignored tournament: {category}")
+                continue
             
             # Find all matches in this category
             match_block = section.find_next('section', class_='matches-day-block')
