@@ -28,13 +28,31 @@
             max-width: 100%;
             overflow-x: hidden;
         }
+        /* Enhanced title styling */
+        .site-title {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 10px auto 2px;
+            line-height: 1;
+        }
+        .site-subtitle {
+            font-size: 14px;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .divider {
+            font-weight: bold;
+            margin: 5px 0;
+        }
         .section {
             margin: 15px 0;
             text-align: center;
         }
         .section-title {
             font-weight: bold;
-            margin: 10px auto;
+            font-size: 18px;
+            margin: 15px auto 5px;
             display: inline-block;
         }
         .match-row {
@@ -88,6 +106,9 @@
                 max-width: 41ch;
                 margin: 5px auto;
             }
+            .site-title {
+                font-size: 24px;
+            }
         }
     </style>
     <script data-goatcounter="https://criclite.goatcounter.com/count"
@@ -95,9 +116,9 @@
 </head>
 <body>
     <div class="container">
-        <pre>CRICLITE.COM
-Plain text live cricket scores.
-=========================================</pre>
+        <pre class="site-title">CRICLITE.COM</pre>
+        <pre class="site-subtitle">Plain text live cricket scores.</pre>
+        <pre class="divider">=========================================</pre>
 
         {% if live_matches %}
         <div class="section">
@@ -135,9 +156,9 @@ Plain text live cricket scores.
         </div>
         {% endif %}
 
+        <pre class="divider">
+=========================================</pre>
         <pre>
-=========================================
-<br>
 Last updated: {{ last_updated }} ({{ time_ago }})
 Page auto-refreshes every 2 minutes.</pre>
 
