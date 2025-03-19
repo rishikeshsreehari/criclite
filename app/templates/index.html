@@ -7,61 +7,62 @@
     <title>CricLite - Minimalist Cricket Scores</title>
     <style>
         body {
-            font-family: 'Courier New', monospace;
+            font-family: monospace;
             margin: 0;
-            padding: 10px;
+            padding: 5px;
             background-color: #fff;
             color: #000;
-            overflow-x: hidden; /* Prevent horizontal scrolling */
+            text-align: center;
+            max-width: 100%;
+            overflow-x: hidden;
         }
         .container {
-            max-width: 1200px;
             margin: 0 auto;
-            padding: 0 10px; /* Add padding for mobile */
+            padding: 0;
+            max-width: 1200px;
         }
-        .header, .footer {
-            text-align: center;
-        }
-        .header pre, .footer pre {
-            white-space: pre-wrap; /* Allow headers to wrap on mobile */
-            overflow-x: auto; /* Enable horizontal scrolling only when needed */
-            max-width: 100%; /* Limit width to container */
-            word-wrap: break-word; /* Break long words if needed */
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-width: 100%;
+            overflow-x: hidden;
         }
         .section {
-            margin-bottom: 20px;
-        }
-        .section-header {
+            margin: 15px 0;
             text-align: center;
-            margin: 30px 0 10px 0;
-            padding: 5px;
-            border-top: 1px solid #ccc;
-            border-bottom: 1px solid #ccc;
+        }
+        .section-title {
             font-weight: bold;
+            margin: 10px auto;
+            display: inline-block;
         }
         .match-row {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px; /* Consistent gap between boxes */
+            align-items: flex-start;
+            column-gap: 20px;
+            row-gap: 10px;
+            margin: 0 auto;
+            width: 100%;
         }
         .match-col {
             font-family: monospace;
             white-space: pre;
             line-height: 1.2;
-            margin: 0 5px 10px 5px;
+            margin: 5px 0;
             overflow: hidden;
             font-size: 14px;
-            width: 41ch;  /* 41 characters wide - matches OUTER_WIDTH */
-            min-width: 345px;
+            width: 41ch;
+            text-align: left;
         }
         .footer-links {
             display: flex;
             justify-content: center;
-            flex-wrap: wrap; /* Allow wrapping on small screens */
-            gap: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
             margin-top: 10px;
-            padding: 0 10px; /* Add padding for small screens */
         }
         .footer-links a {
             color: #000;
@@ -74,79 +75,32 @@
             margin-top: 5px;
         }
         
-        /* Make sure the entire box has consistent size */
-        pre {
-            margin: 0;
-        }
-                
-        @media (max-width: 1100px) {
+        @media (max-width: 860px) {
             .match-row {
-                justify-content: center;
-            }
-            .match-col {
-                width: 345px; /* Keep exact width even on smaller screens */
+                column-gap: 10px;
             }
         }
         
         @media (max-width: 650px) {
-            .container {
-                padding: 0 5px; /* Reduce padding on very small screens */
-            }
             .match-col {
+                font-size: 12px;
                 width: 100%;
-                min-width: unset; /* Remove min-width constraint on mobile */
-                max-width: 100%; /* Ensure it doesn't overflow container */
-                font-size: 12px; /* Slightly smaller font for mobile */
-            }
-            /* Handle long headers in mobile view */
-            .header pre, .footer pre {
-                font-size: 12px; /* Smaller font for header/footer on mobile */
-            }
-            /* Fix for the ASCII-art boxes on mobile */
-            pre {
-                font-size: 12px; /* Consistent font sizing */
-                overflow-x: auto; /* Allow horizontal scrolling for individual boxes if needed */
-            }
-            /* Make the match columns scale properly */
-            .match-col pre {
-                width: 100%; /* Stretch to fill the container */
-                box-sizing: border-box;
-            }
-            /* Adjust footer links for mobile */
-            .footer-links {
-                flex-direction: row; /* Keep horizontal on medium screens */
-                flex-wrap: wrap;
-                justify-content: center;
-                gap: 10px;
-            }
-        }
-        
-        @media (max-width: 400px) {
-            .footer-links {
-                flex-direction: column; /* Stack vertically on very small screens */
-                align-items: center;
-            }
-            .match-col {
-                font-size: 11px; /* Even smaller on very small screens */
+                max-width: 41ch;
+                margin: 5px auto;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <pre>
-CRICLITE.COM
+        <pre>CRICLITE.COM
 Live cricket scores in plain text
-=================================================================
-            </pre>
-        </div>
+=========================================</pre>
 
         {% if live_matches %}
         <div class="section">
-            <div class="section-header">
-                <pre>LIVE</pre>
-            </div>
+            <pre class="section-title">[LIVE]
+=============</pre>
             <div class="match-row">
                 {% for match in live_matches %}
                 <div class="match-col">{{ match | safe }}</div>
@@ -157,9 +111,8 @@ Live cricket scores in plain text
 
         {% if upcoming_matches %}
         <div class="section">
-            <div class="section-header">
-                <pre>UPCOMING</pre>
-            </div>
+            <pre class="section-title">[UPCOMING]
+=============</pre>
             <div class="match-row">
                 {% for match in upcoming_matches %}
                 <div class="match-col">{{ match | safe }}</div>
@@ -170,9 +123,8 @@ Live cricket scores in plain text
 
         {% if completed_matches %}
         <div class="section">
-            <div class="section-header">
-                <pre>COMPLETED</pre>
-            </div>
+            <pre class="section-title">[COMPLETED]
+=============</pre>
             <div class="match-row">
                 {% for match in completed_matches %}
                 <div class="match-col">{{ match | safe }}</div>
@@ -181,22 +133,21 @@ Live cricket scores in plain text
         </div>
         {% endif %}
 
-        <div class="footer">
-            <pre>
-=================================================================
+        <pre>
+=========================================
+<br>
 Last updated: {{ last_updated }} ({{ time_ago }})
-Page auto-refreshes every 2 minutes.
-            </pre>
-            <div class="footer-links">
-                <a href="/about">About</a>
-                <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
-                <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
-                <div><a href="/plain.txt" target="_blank">plain.txt</a></div>
-            </div>
+Page auto-refreshes every 2 minutes.</pre>
 
-            <div class="builder">
-                Built by <a href="https://rishikeshs.com" target="_blank">Rishikesh</a>
-            </div>
+        <div class="footer-links">
+            <a href="/about">About</a>
+            <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
+            <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
+            <a href="/plain.txt" target="_blank">plain.txt</a>
+        </div>
+
+        <div class="builder">
+            Built by <a href="https://rishikeshs.com" target="_blank">Rishikesh</a>
         </div>
     </div>
 </body>

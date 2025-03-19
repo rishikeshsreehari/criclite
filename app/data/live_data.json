@@ -1,6 +1,6 @@
 {
-  "last_updated": "2025-03-19 13:34:47 GMT",
-  "last_updated_timestamp": 1742391287.7816284,
+  "last_updated": "2025-03-19 13:52:50 GMT",
+  "last_updated_timestamp": 1742392370.8772826,
   "matches": [
     {
       "category": "Twenty20 Internationals",
@@ -9,7 +9,7 @@
       "tournament_priority": 1,
       "match_info": "Mar 19, 2025\n-\n\n\n     2nd T20I at Namibia Cricket Ground, Windhoek",
       "team1": "Canada",
-      "score1": "18/1 (2.1/15 ov)",
+      "score1": "50/3 (5.4/15 ov)",
       "team2": "Namibia",
       "score2": "",
       "status": "Namibia won the toss and elected to field",
@@ -51,7 +51,7 @@
       "score1": "Region",
       "team2": "Faisalabad",
       "score2": "Region",
-      "status": "Match scheduled to begin in 30 minutes\n (19:00 local | 14:00 GMT | 18:00 +04)",
+      "status": "Match scheduled to begin in 11 minutes\n (19:00 local | 14:00 GMT | 18:00 +04)",
       "link": "https://www.espncricinfo.com/series/8660/game/1476897/abbottabad-region-vs-faisalabad-region-23rd-match-group-c-national-t20-cup-2024-25"
     },
     {
@@ -64,7 +64,7 @@
       "score1": "Murad Jamali Region",
       "team2": "Lahore",
       "score2": "Region Blues",
-      "status": "Match scheduled to begin in 2 hours 30 mins\n (21:00 local | 16:00 GMT | 20:00 +04)",
+      "status": "Match scheduled to begin in 2 hours 11 mins\n (21:00 local | 16:00 GMT | 20:00 +04)",
       "link": "https://www.espncricinfo.com/series/8660/game/1476896/dera-murad-jamali-region-vs-lahore-region-blues-22nd-match-group-b-national-t20-cup-2024-25"
     },
     {
@@ -77,7 +77,7 @@
       "score1": "Region Blues",
       "team2": "Peshawar",
       "score2": "Region",
-      "status": "Match scheduled to begin in 2 hours 30 mins\n (21:00 local | 16:00 GMT | 20:00 +04)",
+      "status": "Match scheduled to begin in 2 hours 11 mins\n (21:00 local | 16:00 GMT | 20:00 +04)",
       "link": "https://www.espncricinfo.com/series/8660/game/1476894/karachi-region-blues-vs-peshawar-region-20th-match-group-a-national-t20-cup-2024-25"
     },
     {
@@ -100,10 +100,10 @@
       "tournament_priority": 6,
       "match_info": "Mar 18-20, 2025\n-\n\n\n     2nd Match at Takashinga Sports Club, Highfield, Harare",
       "team1": "Zimbabwe",
-      "score1": "A    151 & 73/5 (28 ov)",
+      "score1": "A    151 & 87/5 (32.1 ov)",
       "team2": "Durham",
       "score2": "185",
-      "status": "Zimbabwe A lead by 39 runs with 5 wickets remaining",
+      "status": "Zimbabwe A lead by 53 runs with 5 wickets remaining",
       "link": "https://www.espncricinfo.com/series/1476749/game/1476758/zimbabwe-a-vs-durham-2nd-match-"
     },
     {
