@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
 import asyncio
@@ -238,6 +238,10 @@ async def add_jinja_filters():
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     """Serve the main page with cricket scores, grouped by status"""
+    # Get theme from cookie, default to light
+    theme = request.cookies.get("theme", "light")
+    print(f"Home route - Current theme: {theme}")
+    
     # Load the latest cricket data
     cricket_data = load_cricket_data()
     
@@ -283,6 +287,7 @@ async def root(request: Request):
     
     response = templates.TemplateResponse("index.html", {
         "request": request,
+        "theme": theme,
         "live_matches": live_matches,
         "completed_matches": completed_matches,
         "upcoming_matches": upcoming_matches,
@@ -291,12 +296,73 @@ async def root(request: Request):
         "next_update_mins": next_update_mins
     })
     
-    response.headers.update({"Cache-Control": f"max-age={cache_time}"})
+    # Set appropriate cache control for CDN
+    response.headers["Cache-Control"] = f"public, max-age={cache_time}, s-maxage=120"
+    
+    # Set Vary header to ensure proper caching with cookies
+    response.headers["Vary"] = "Cookie"
+    
     return response
 
+@app.get("/toggle-theme", response_class=HTMLResponse)
+async def toggle_theme(request: Request):
+    """Toggle between light and dark theme"""
+    # Get current theme from cookie
+    current_theme = request.cookies.get("theme", "light")
+    
+    # Toggle theme
+    new_theme = "dark" if current_theme == "light" else "light"
+    
+    # Get the referer, defaulting to home page
+    referer = request.headers.get("referer", "/")
+    
+    # If referer is the toggle-theme page itself, redirect to home
+    if "/toggle-theme" in referer:
+        referer = "/"
+    
+    print(f"Toggle theme - Current: {current_theme}, New: {new_theme}, Referer: {referer}")
+    
+    # Return a special HTML page that sets the cookie and then redirects
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta http-equiv="refresh" content="0;url={referer}">
+        <title>Changing Theme...</title>
+    </head>
+    <body>
+        <p>Changing theme to {new_theme}...</p>
+    </body>
+    </html>
+    """
+    
+    response = HTMLResponse(content=html_content)
+    
+    # Set the theme cookie
+    response.set_cookie(
+        key="theme", 
+        value=new_theme, 
+        max_age=31536000,  # 1 year
+        path="/"
+    )
+    
+    # Set cache control to ensure this page is never cached
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    
+    return response
+
+@app.get("/test-cookie")
+async def test_cookie(request: Request):
+    """Test endpoint to check if cookies are working"""
+    theme = request.cookies.get("theme", "light")
+    return {"current_theme": theme}
+
 @app.get("/plain.txt", response_class=PlainTextResponse)
-async def plain_text():
+async def plain_text(request: Request):
     """Serve the cricket scores as plain text, grouped by status"""
+    # Get theme from cookie for informational purposes
+    theme = request.cookies.get("theme", "light")
+    
     # Load the latest cricket data
     cricket_data = load_cricket_data()
     
@@ -323,6 +389,7 @@ async def plain_text():
     output.append("CRICLITE.COM")
     output.append("Live cricket scores in plain text")
     output.append("=================================================================")
+    output.append(f"Current theme: {theme.upper()}")
     
     # Add live matches
     if live_matches:
@@ -364,14 +431,35 @@ async def plain_text():
     output.append("Refresh page to update scores.")
     
     # Join all lines and return
-    return "\n".join(output)
+    response = PlainTextResponse("\n".join(output))
+    
+    # Set appropriate cache control for CDN
+    response.headers["Cache-Control"] = "public, max-age=60, s-maxage=120"
+    
+    # Set Vary header to ensure proper caching with cookies
+    response.headers["Vary"] = "Cookie"
+    
+    return response
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
     """About page with information about the site"""
-    return templates.TemplateResponse("about.html", {
-        "request": request
+    # Get theme from cookie
+    theme = request.cookies.get("theme", "light")
+    print(f"About route - Current theme: {theme}")
+    
+    response = templates.TemplateResponse("about.html", {
+        "request": request,
+        "theme": theme
     })
+    
+    # Set appropriate cache control for CDN
+    response.headers["Cache-Control"] = "public, max-age=3600, s-maxage=3600"
+    
+    # Set Vary header to ensure proper caching with cookies
+    response.headers["Vary"] = "Cookie"
+    
+    return response
 
 async def update_cricket_data():
     """Background task to update cricket data with adaptive interval"""

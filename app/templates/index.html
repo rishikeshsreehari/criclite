@@ -6,12 +6,28 @@
     <meta http-equiv="refresh" content="120">
     <title>CricLite - Plain Text Live Cricket Scores</title>
     <style>
+        :root {
+            --bg-color: #fff;
+            --text-color: #000;
+            --border-color: #555;
+            --link-color: #000;
+            --link-hover-color: #444;
+        }
+        
+        [data-theme="dark"] {
+            --bg-color: #222;
+            --text-color: #ddd;
+            --border-color: #888;
+            --link-color: #ddd;
+            --link-hover-color: #fff;
+        }
+        
         body {
             font-family: monospace;
             margin: 0;
             padding: 5px;
-            background-color: #fff;
-            color: #000;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             text-align: center;
             max-width: 100%;
             overflow-x: hidden;
@@ -27,6 +43,7 @@
             word-wrap: break-word;
             max-width: 100%;
             overflow-x: hidden;
+            color: var(--text-color);
         }
         .site-title {
             font-size: 28px;
@@ -82,15 +99,32 @@
             margin-top: 10px;
         }
         .footer-links a {
-            color: #000;
+            color: var(--link-color);
             text-decoration: underline;
         }
 
         .footer-links a:hover {
-            text-decoration: none ;
+            text-decoration: none;
+            color: var(--link-hover-color);
         }
         .builder {
             margin-top: 5px;
+        }
+        
+        /* Theme toggle styles */
+        .theme-toggle {
+            margin: 10px auto;
+            font-size: 14px;
+        }
+        
+        .theme-toggle a {
+            color: var(--link-color);
+            text-decoration: underline;
+        }
+        
+        .theme-toggle a:hover {
+            text-decoration: none;
+            color: var(--link-hover-color);
         }
         
         @media (max-width: 860px) {
@@ -114,10 +148,15 @@
     <script data-goatcounter="https://criclite.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
 </head>
-<body>
+<body data-theme="{{ theme }}">
     <div class="container">
         <pre class="site-title">CRICLITE.COM</pre>
         <pre class="site-subtitle">Plain text live cricket scores.</pre>
+        
+        <div class="theme-toggle">
+            <a href="/toggle-theme">Switch to {{ "Light" if theme == "dark" else "Dark" }} Mode</a>
+        </div>
+        
         <pre class="divider">=========================================</pre>
 
         {% if live_matches %}
@@ -171,7 +210,7 @@ Page auto-refreshes every 2 minutes.</pre>
         </div>
 
         <div class="builder">
-            Built by <a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank" style="text-decoration: underline; color: black;">Rishikesh</a>
+            Built by <a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank" style="text-decoration: underline; color: var(--link-color);">Rishikesh</a>
         </div>
     </div>
 </body>
