@@ -42,7 +42,7 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             max-width: 100%;
-            overflow-x: hidden;
+            overflow: visible;
             color: var(--text-color);
         }
         .site-title {
@@ -51,11 +51,19 @@
             letter-spacing: 2px;
             margin: 10px auto 2px;
             line-height: 1;
+            text-align: center;
+            width: 100%;
+            overflow: visible;
+            display: block;
         }
         .site-subtitle {
             font-size: 14px;
             margin-top: 0;
             margin-bottom: 5px;
+            text-align: center;
+            width: 100%;
+            overflow: visible;
+            display: block;
         }
         .divider {
             font-weight: bold;
@@ -70,6 +78,7 @@
             font-size: 18px;
             margin: 15px auto 5px;
             display: inline-block;
+            overflow: visible;
         }
         .match-row {
             display: flex;
@@ -102,7 +111,7 @@
             color: var(--link-color);
             text-decoration: underline;
         }
-
+    
         .footer-links a:hover {
             text-decoration: none;
             color: var(--link-hover-color);
@@ -154,7 +163,7 @@
         <pre class="site-subtitle">Plain text live cricket scores.</pre>
         
         <div class="theme-toggle">
-            <a href="/toggle-theme">Switch to {{ "Light" if theme == "dark" else "Dark" }} Mode</a>
+            <a href="/toggle-theme" style="text-decoration: none"> {{ "[Light] " if theme == "dark" else "[Dark]" }}</a>
         </div>
         
         <pre class="divider">=========================================</pre>
