@@ -389,7 +389,6 @@ async def plain_text(request: Request):
     output.append("CRICLITE.COM")
     output.append("Live cricket scores in plain text")
     output.append("=================================================================")
-    output.append(f"Current theme: {theme.upper()}")
     
     # Add live matches
     if live_matches:
