@@ -153,6 +153,28 @@
                 font-size: 24px;
             }
         }
+
+        .terminal-section {
+            margin: 15px auto;
+            font-family: monospace;
+            text-align: center;
+        }
+        
+        .terminal-header {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .terminal-cmd {
+            margin: 5px 0;
+        }
+        
+        .terminal-cmd code {
+            background-color: rgba(128, 128, 128, 0.1);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
     </style>
     <script data-goatcounter="https://criclite.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -215,7 +237,16 @@ Page auto-refreshes every 2 minutes.</pre>
             <a href="/about">About</a>
             <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
             <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
-            <a href="/plain.txt" target="_blank">plain.txt</a>
+            <a href="/plain.txt">plain.txt</a>
+
+
+        </div>
+
+        
+        <div class="terminal-section">
+            <div class="terminal-header">Access via Terminal</div>
+            <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
+            <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
         </div>
 
         <div class="builder">
