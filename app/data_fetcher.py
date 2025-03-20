@@ -41,6 +41,7 @@ IGNORED_TOURNAMENTS = [
     "CSA 4-Day Series Division 1",
     "Men's PM Cup",
     "National T20 Cup",
+    "Plunket Shield",
     # Add any other tournaments you want to ignore
 ]
 
