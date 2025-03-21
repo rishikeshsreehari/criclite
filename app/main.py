@@ -9,13 +9,30 @@ from datetime import datetime
 import time
 import json
 import os
+import logging.handlers
 
-from app.data_fetcher import fetch_live_scores, DATA_FILE, DATA_FOLDER
+from app.data_fetcher import fetch_live_scores, DATA_FILE, DATA_FOLDER, IGNORED_TOURNAMENTS
 
 app = FastAPI()
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+# Ensure data directories exist
+os.makedirs(DATA_FOLDER, exist_ok=True)
+
+# Set up log file with rotation to prevent it from growing too large
+LOG_FILE = DATA_FOLDER / "app_log.txt"
+app_logger = logging.getLogger("app")
+app_logger.setLevel(logging.INFO)
+handler = logging.handlers.RotatingFileHandler(
+    LOG_FILE,
+    maxBytes=1024*1024,  # 1MB file size
+    backupCount=3        # Keep 3 backup files
+)
+handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+app_logger.addHandler(handler)
+app_logger.addHandler(logging.StreamHandler())
 
 # Default data structure
 default_cricket_data = {
@@ -27,7 +44,7 @@ default_cricket_data = {
 
 # Store previous data and current interval for adaptive updates
 last_cricket_data = None
-current_update_interval = 120  # Start with 2 minutes
+current_update_interval = 180  # 3 minutes
 next_update_time = None
 
 def load_cricket_data():
@@ -44,14 +61,22 @@ def format_match_for_display(match, use_symbols=True):
     """Format a match into a nice ASCII box with consistent dimensions"""
     
     # Get match data
-    match_info = match['match_info']
-    team1 = match['team1']
-    team2 = match['team2']
-    score1 = match['score1'] if match['score1'] else ""
-    score2 = match['score2'] if match['score2'] else ""
-    status = match['status']
-    is_live = match['is_live']
-    category = match['category']
+    match_info = match.get('match_info', '')
+    team1 = match.get('team1', '')
+    team2 = match.get('team2', '')
+    score1 = match.get('score1', '')
+    score2 = match.get('score2', '')
+    status = match.get('status', '')
+    is_live = match.get('is_live', False)
+    category = match.get('category', '')
+    live_state = match.get('live_state', '').lower()
+    
+    # Determine prefix for match info
+    info_prefix = ""
+    if is_live:
+        info_prefix = "[LIVE] "
+    elif live_state == "stumps":
+        info_prefix = "[STUMPS] "
     
     # Fixed dimensions - these should never change
     OUTER_WIDTH = 41  # Total width including borders
@@ -68,8 +93,7 @@ def format_match_for_display(match, use_symbols=True):
     box_lines = []
     box_lines.append(top_border)
     
-    # Format match info - always prefix with [LIVE] if live
-    info_prefix = "[LIVE] " if is_live else ""
+    # Format match info with the appropriate prefix
     match_info_cleaned = match_info.replace("\n", " ").strip()
     
     # Split match info into lines that fit
@@ -129,6 +153,7 @@ def format_match_for_display(match, use_symbols=True):
         box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
         box_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
     
+    # Team 2 and score
     # Team 2 and score
     if len(team2) + len(score2) + 1 <= INNER_WIDTH:
         # Can fit on one line
@@ -240,13 +265,13 @@ async def root(request: Request):
     """Serve the main page with cricket scores, grouped by status"""
     # Get theme from cookie, default to light
     theme = request.cookies.get("theme", "light")
-    print(f"Home route - Current theme: {theme}")
+    
     
     # Load the latest cricket data
     cricket_data = load_cricket_data()
     
     # Calculate how long since the last update
-    seconds_ago = int(time.time() - cricket_data['last_updated_timestamp'])
+    seconds_ago = int(time.time() - cricket_data.get('last_updated', time.time()))
     
     if seconds_ago < 60:
         time_ago = f"{seconds_ago} seconds ago"
@@ -265,9 +290,9 @@ async def root(request: Request):
     completed_matches = []
     upcoming_matches = []
     
-    for match in cricket_data['matches']:
-        # Enhanced status determination
-        match_status = match['match_status'] 
+    for match in cricket_data.get('matches', []):
+        # Get match status
+        match_status = match.get('match_status', 'unknown') 
         
         formatted_match = format_match_for_display(match)
         
@@ -275,7 +300,7 @@ async def root(request: Request):
             live_matches.append(formatted_match)
         elif match_status == "completed":
             completed_matches.append(formatted_match)
-        else:  # scheduled or unknown
+        else:  # upcoming or unknown
             upcoming_matches.append(formatted_match)
     
     # Calculate next update time
@@ -291,7 +316,7 @@ async def root(request: Request):
         "live_matches": live_matches,
         "completed_matches": completed_matches,
         "upcoming_matches": upcoming_matches,
-        "last_updated": cricket_data['last_updated'],
+        "last_updated": cricket_data.get('last_updated_string', "Unknown"),
         "time_ago": time_ago,
         "next_update_mins": next_update_mins
     })
@@ -320,7 +345,7 @@ async def toggle_theme(request: Request):
     if "/toggle-theme" in referer:
         referer = "/"
     
-    print(f"Toggle theme - Current: {current_theme}, New: {new_theme}, Referer: {referer}")
+    app_logger.info(f"Toggle theme - Current: {current_theme}, New: {new_theme}, Referer: {referer}")
     
     # Return a special HTML page that sets the cookie and then redirects
     html_content = f"""
@@ -371,9 +396,9 @@ async def plain_text(request: Request):
     completed_matches = []
     upcoming_matches = []
     
-    for match in cricket_data['matches']:
-        # Enhanced status determination
-        match_status = match['match_status']
+    for match in cricket_data.get('matches', []):
+        # Get match status
+        match_status = match.get('match_status', 'unknown')
         
         formatted_match = format_match_for_display(match, use_symbols=False)
         
@@ -381,7 +406,7 @@ async def plain_text(request: Request):
             live_matches.append(formatted_match)
         elif match_status == "completed":
             completed_matches.append(formatted_match)
-        else:  # scheduled or unknown
+        else:  # upcoming or unknown
             upcoming_matches.append(formatted_match)
     
     # Build the plain text output
@@ -418,7 +443,7 @@ async def plain_text(request: Request):
             output.append("")  # Add space between matches
     
     output.append("=================================================================")
-    output.append(f"Last updated: {cricket_data['last_updated']}")
+    output.append(f"Last updated: {cricket_data.get('last_updated_string', 'Unknown')}")
     
     # Add next update info if available
     if next_update_time:
@@ -445,7 +470,7 @@ async def about(request: Request):
     """About page with information about the site"""
     # Get theme from cookie
     theme = request.cookies.get("theme", "light")
-    print(f"About route - Current theme: {theme}")
+    app_logger.info(f"About route - Current theme: {theme}")
     
     response = templates.TemplateResponse("about.html", {
         "request": request,
@@ -460,78 +485,48 @@ async def about(request: Request):
     
     return response
 
+
 async def update_cricket_data():
     """Background task to update cricket data with adaptive interval"""
-    global last_cricket_data
-    global current_update_interval
     global next_update_time
+    
+    # Change update interval from 180 to 120 seconds (2 minutes)
+    current_update_interval = 120  # 2 minutes
     
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             # Fetch the latest data
-            print(f"[{current_time}] Fetching cricket data...")
-            cricket_data = fetch_live_scores()
+            app_logger.info(f"[{current_time}] Fetching cricket data...")
+            cricket_data = fetch_live_scores(IGNORED_TOURNAMENTS)
             
-            # Calculate next update time based on whether data changed
-            if last_cricket_data:
-                # Check if data changed
-                data_changed = False
-                
-                # Compare live matches
-                prev_live_matches = sum(1 for m in last_cricket_data['matches'] if m['is_live'])
-                curr_live_matches = sum(1 for m in cricket_data['matches'] if m['is_live'])
-                
-                if prev_live_matches != curr_live_matches:
-                    data_changed = True
-                else:
-                    # Check if scores changed for live matches
-                    prev_scores = {f"{m['team1']}_{m['team2']}": (m['score1'], m['score2']) 
-                                  for m in last_cricket_data['matches'] if m['is_live']}
-                    curr_scores = {f"{m['team1']}_{m['team2']}": (m['score1'], m['score2']) 
-                                  for m in cricket_data['matches'] if m['is_live']}
-                    
-                    if prev_scores != curr_scores:
-                        data_changed = True
-                
-                if data_changed:
-                    # Reset interval if data changed
-                    current_update_interval = 120  # 2 minutes
-                else:
-                    # Increase interval, with a maximum of 20 minutes
-                    current_update_interval = min(current_update_interval * 1.5, 1200)
-            
-            # Store current data for next comparison
-            last_cricket_data = cricket_data
-            
-            # Set the next update time
+            # Calculate next update time (every 2 minutes)
             next_update_time = time.time() + current_update_interval
             
             # Log information about the update
             live_matches = sum(1 for m in cricket_data['matches'] if m['is_live'])
-            minutes = round(current_update_interval / 60, 1)
-            print(f"[{current_time}] Data updated. Found {live_matches} live matches. " +
-                  f"Next update in {minutes} minutes.")
+            upcoming_matches = sum(1 for m in cricket_data['matches'] if m['match_status'] == 'upcoming')
+            app_logger.info(f"[{current_time}] Data updated. Found {live_matches} live matches, {upcoming_matches} upcoming matches. " +
+                  f"Next update in {current_update_interval//60} minutes.")
             
         except Exception as e:
-            print(f"[{current_time}] Error updating cricket data: {e}")
-            current_update_interval = 120  # Reset to default on error
-            next_update_time = time.time() + current_update_interval
+            app_logger.error(f"[{current_time}] Error updating cricket data: {e}")
+            next_update_time = time.time() + current_update_interval  # Reset to default on error
         
         # Wait before updating again
         await asyncio.sleep(current_update_interval)
-
+           
 @app.on_event("startup")
 async def startup_event():
     """Run on application startup"""
     # Initial data fetch
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
-        print(f"[{current_time}] Initial data fetch...")
-        fetch_live_scores()  # This now saves to JSON file directly
-        print(f"[{current_time}] Initial data loaded")
+        app_logger.info(f"[{current_time}] Initial data fetch...")
+        fetch_live_scores(IGNORED_TOURNAMENTS, logger=app_logger)
+        app_logger.info(f"[{current_time}] Initial data loaded")
     except Exception as e:
-        print(f"[{current_time}] Error fetching initial cricket data: {e}")
+        app_logger.error(f"[{current_time}] Error fetching initial cricket data: {e}")
     
     # Start background task
     asyncio.create_task(update_cricket_data())
