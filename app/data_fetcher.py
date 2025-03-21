@@ -7,6 +7,7 @@ import time
 import re
 from datetime import datetime
 from pathlib import Path
+import hashlib
 
 # Define the data folder and file path
 BASE_DIR = Path(__file__).resolve().parent
