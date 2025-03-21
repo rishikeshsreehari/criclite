@@ -17,6 +17,14 @@ FAILED_FETCHES_FILE = DATA_FOLDER / "failed_fetches.json"
 # Ensure data directories exist
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
+# Global variable to track RSS fetch strategy
+RSS_FETCH_STRATEGY = {
+    'last_hash': None,
+    'last_checked': 0,
+    'unchanged_count': 0,
+    'wait_times': [2, 3, 5, 10, 15, 20]  # minutes
+}
+
 # Define priority categories for tournaments
 PRIORITY_CATEGORIES = {
     "Twenty20 Internationals": 1,
@@ -58,16 +66,47 @@ def extract_match_id(url):
     return None
 
 def fetch_rss_feed(logger=None):
-    """Fetch and parse the RSS feed from Cricinfo"""
+    """Fetch and parse the RSS feed from Cricinfo with adaptive wait strategy"""
     rss_url = "https://static.cricinfo.com/rss/livescores.xml"
+    current_time = time.time()
+    
+    # Determine current wait time
+    unchanged_count = RSS_FETCH_STRATEGY['unchanged_count']
+    wait_times = RSS_FETCH_STRATEGY['wait_times']
+    current_wait_time = wait_times[min(unchanged_count, len(wait_times) - 1)] * 60  # convert to seconds
     
     try:
+        # Check if enough time has passed since last check
+        if (current_time - RSS_FETCH_STRATEGY['last_checked']) < current_wait_time:
+            if logger:
+                logger.info(f"Skipping RSS fetch. Wait time not elapsed. Next fetch in {current_wait_time} seconds.")
+            return None
+        
         response = requests.get(rss_url, timeout=10)
         if response.status_code != 200:
             if logger:
                 logger.error(f"Failed to fetch RSS feed: {response.status_code}")
             return None
+        
+        # Create a hash of the entire RSS content
+        current_rss_hash = hashlib.md5(response.content).hexdigest()
+        
+        # Check if RSS content has changed
+        if current_rss_hash == RSS_FETCH_STRATEGY['last_hash']:
+            # Content is the same, increment unchanged count
+            RSS_FETCH_STRATEGY['unchanged_count'] += 1
+            RSS_FETCH_STRATEGY['last_checked'] = current_time
             
+            if logger:
+                logger.info(f"No RSS changes. Unchanged count: {RSS_FETCH_STRATEGY['unchanged_count']}, "
+                             f"Next fetch in {current_wait_time} seconds.")
+            return None
+        
+        # RSS content has changed
+        RSS_FETCH_STRATEGY['last_hash'] = current_rss_hash
+        RSS_FETCH_STRATEGY['last_checked'] = current_time
+        RSS_FETCH_STRATEGY['unchanged_count'] = 0  # Reset unchanged count
+        
         # Parse XML
         root = ET.fromstring(response.content)
         
