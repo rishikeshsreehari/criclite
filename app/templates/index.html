@@ -32,11 +32,13 @@
             max-width: 100%;
             overflow-x: hidden;
         }
+        
         .container {
             margin: 0 auto;
             padding: 0;
             max-width: 1200px;
         }
+        
         pre {
             margin: 0;
             white-space: pre-wrap;
@@ -45,6 +47,7 @@
             overflow: visible;
             color: var(--text-color);
         }
+        
         .site-title {
             font-size: 28px;
             font-weight: bold;
@@ -56,6 +59,7 @@
             overflow: visible;
             display: block;
         }
+        
         .site-subtitle {
             font-size: 14px;
             margin-top: 0;
@@ -65,14 +69,17 @@
             overflow: visible;
             display: block;
         }
+        
         .divider {
             font-weight: bold;
             margin: 5px 0;
         }
+        
         .section {
             margin: 15px 0;
             text-align: center;
         }
+        
         .section-title {
             font-weight: bold;
             font-size: 18px;
@@ -80,6 +87,7 @@
             display: inline-block;
             overflow: visible;
         }
+        
         .match-row {
             display: flex;
             flex-wrap: wrap;
@@ -90,6 +98,7 @@
             margin: 0 auto;
             width: 100%;
         }
+        
         .match-col {
             font-family: monospace;
             white-space: pre;
@@ -99,25 +108,6 @@
             font-size: 14px;
             width: 41ch;
             text-align: left;
-        }
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 10px;
-        }
-        .footer-links a {
-            color: var(--link-color);
-            text-decoration: underline;
-        }
-    
-        .footer-links a:hover {
-            text-decoration: none;
-            color: var(--link-hover-color);
-        }
-        .builder {
-            margin-top: 5px;
         }
         
         /* Theme toggle styles */
@@ -136,24 +126,6 @@
             color: var(--link-hover-color);
         }
         
-        @media (max-width: 860px) {
-            .match-row {
-                column-gap: 10px;
-            }
-        }
-        
-        @media (max-width: 650px) {
-            .match-col {
-                font-size: 12px;
-                width: 100%;
-                max-width: 41ch;
-                margin: 5px auto;
-            }
-            .site-title {
-                font-size: 24px;
-            }
-        }
-
         .terminal-section {
             margin: 15px auto;
             font-family: monospace;
@@ -174,15 +146,98 @@
             padding: 2px 5px;
             border-radius: 3px;
         }
+        
+        /* Footer styles */
+        .footer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin: 15px auto 5px;
+            text-align: center;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 0 10px;
+        }
+        
+        .footer-links a {
+            color: var(--link-color);
+            text-decoration: underline;
+        }
+        
+        .footer-links a:hover {
+            text-decoration: none;
+            color: var(--link-hover-color);
+        }
+        
+        .builder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
         .version-tag {
-            font-size: 0.7em;         /* Slightly larger, more readable */
-            color: --textcolor
-            font-weight: 300;          /* Lighter font weight */
-            margin-left: 10px;         /* More horizontal spacing */
-            margin-top: 5px;           /* Add some vertical spacing */
-            vertical-align: super;     /* Slightly raised positioning */
-            padding: 2px 4px;          /* Add some padding */
-            display: inline-block;     /* Allows padding to take effect */
+            font-size: 0.7em;
+            font-weight: 300;
+            display: block;
+            text-align: center;
+            width: 100%;
+            margin-top: 5px;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 860px) {
+            .match-row {
+                column-gap: 10px;
+            }
+        }
+        
+        @media (max-width: 650px) {
+            .match-col {
+                font-size: 12px;
+                width: 100%;
+                max-width: 41ch;
+                margin: 5px auto;
+            }
+            
+            .site-title {
+                font-size: 24px;
+            }
+            
+            .footer-links {
+                gap: 10px;
+            }
+            
+            .footer-links a {
+                font-size: 13px;
+            }
+            
+            .builder {
+                font-size: 13px;
+            }
+        }
+
+                /* Add this to your CSS */
+        .builder a {
+            color: var(--text-color);
+            text-decoration: underline;
+        }
+
+        .builder a:hover {
+            color: var(--link-hover-color);
         }
     </style>
     <script data-goatcounter="https://criclite.goatcounter.com/count"
@@ -249,24 +304,20 @@
         {% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.{% endif %}
         Page auto-refreshes every 2 minutes.</pre>
 
-        
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="/about">About</a>
+                <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
+                <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
+                <a href="/plain.txt">plain.txt</a>
+            </div>
 
-        <div class="footer-links">
-            <a href="/about">About</a>
-            <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
-            <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
-            <a href="/plain.txt">plain.txt</a>
-
-
+            <div class="builder">
+                Built by&nbsp;<a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank">Rishikesh</a>
+            </div>
+            
+            <div class="version-tag">v0.1.0</div>
         </div>
-
-        
-        
-
-        <div class="builder">
-            Built by <a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank" style="text-decoration: underline; color: var(--link-color);">Rishikesh</a>
-        </div>
-        <div class="version-tag">v0.1.0</div>
     </div>
 </body>
 </html>
