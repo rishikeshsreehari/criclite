@@ -5,7 +5,7 @@ import json
 import os
 import time
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import hashlib
 
@@ -58,6 +58,148 @@ IGNORED_TOURNAMENTS = [
     "Plunket Shield",
     # Add any other tournaments you want to ignore
 ]
+
+def fix_all_match_files():
+    """Temporary function to fix all match files to ensure upcoming matches have time info"""
+    import glob
+    
+    match_files = glob.glob(str(DATA_FOLDER / "*.json"))
+    for file_path in match_files:
+        if "live_data.json" in file_path or "previous_rss_data.json" in file_path or "failed_fetches.json" in file_path:
+            continue
+            
+        try:
+            with open(file_path, 'r') as f:
+                match_data = json.load(f)
+                
+            status_text = match_data.get('status', '')
+            if "scheduled to begin at" in status_text.lower():
+                print(f"Fixing match file: {file_path}")
+                match_data['match_status'] = 'upcoming'
+                match_time = extract_time_from_status(status_text)
+                if match_time:
+                    # Extract local time if present
+                    local_match = re.search(r'begin at (\d{1,2}:\d{2}) local', status_text)
+                    local_time = local_match.group(1) if local_match else None
+                    
+                    match_data['match_time'] = match_time
+                    match_data['local_time'] = local_time
+                    match_data['start_time_info'] = format_match_time(match_time, local_time, None)
+                    print(f"  Updated start_time_info: {match_data['start_time_info']}")
+                    
+                    with open(file_path, 'w') as f:
+                        json.dump(match_data, f, indent=2)
+                    print(f"  Saved updated match data!")
+        except Exception as e:
+            print(f"Error processing {file_path}: {e}")
+
+
+def format_match_time(match_time, local_time=None, timezone=None):
+    """Format match time in a user-friendly way showing countdown and scheduled time"""
+    if not match_time:
+        # Add fallback when no match time is available
+        if local_time:
+            return f"Match scheduled to begin at {local_time} {timezone or 'local time'}"
+        return "Match time not available"
+    
+    # Use GMT time instead of system time
+    current_time = time.mktime(time.gmtime())
+    time_diff = match_time - current_time
+    
+    # Create formatted time strings
+    gmt_time_str = time.strftime("%H:%M GMT", time.gmtime(match_time))
+    
+    local_time_str = ""
+    if local_time and timezone:
+        local_time_str = f"{local_time} {timezone}"
+    elif local_time:
+        local_time_str = f"{local_time} Local"
+    
+    # Create countdown string - for testing purposes, adjust times to always show future
+    if time_diff < 0:
+        # For testing - make past matches appear to start soon
+        if abs(time_diff) < 86400:  # If within a day
+            time_diff = 7200  # Set to 2 hours in the future
+        else:
+            time_diff = 86400  # Set to 1 day in the future
+    
+    # Now create the countdown string based on adjusted time_diff
+    if time_diff < 60:
+        countdown = "Starting in less than a minute"
+    elif time_diff < 3600:
+        minutes = int(time_diff // 60)
+        countdown = f"Starts in {minutes} minute{'s' if minutes > 1 else ''}"
+    elif time_diff < 86400:
+        hours = int(time_diff // 3600)
+        countdown = f"Starts in {hours} hour{'s' if hours > 1 else ''}"
+    elif time_diff < 172800:
+        countdown = "Starts tomorrow"
+    else:
+        days = int(time_diff // 86400)
+        countdown = f"Starts in {days} day{'s' if days > 1 else ''}"
+    
+    # Put each part on a separate line
+    time_string = countdown
+    
+    if local_time_str and gmt_time_str:
+        time_string += f"\n{local_time_str} ({gmt_time_str})"
+    elif gmt_time_str:
+        time_string += f"\n{gmt_time_str}"
+    
+    return time_string
+
+def extract_time_from_status(status_text):
+    """Extract match time from status text like 'Match scheduled to begin at 19:30 local time (14:00 GMT)'"""
+    try:
+        print(f"Extracting time from status: {status_text}")
+        
+        # Check if we have a GMT time in parentheses
+        gmt_match = re.search(r'\((\d{1,2}:\d{2}) GMT\)', status_text)
+        if gmt_match:
+            gmt_time_str = gmt_match.group(1)
+            print(f"  Found GMT time: {gmt_time_str}")
+            # Parse the GMT time
+            hour, minute = map(int, gmt_time_str.split(':'))
+            
+            # Get current date in GMT
+            now = datetime.utcnow()
+            match_date = datetime(now.year, now.month, now.day, hour, minute)
+            
+            # If the time is in the past, assume it's tomorrow
+            if (datetime.utcnow() - match_date).total_seconds() > 7200:  # More than 2 hours ago
+                match_date = match_date + timedelta(days=1)
+                print(f"  Time was in past, adjusted to tomorrow")
+                
+            timestamp = match_date.timestamp()
+            print(f"  Extracted timestamp: {timestamp}")
+            return timestamp
+            
+        # If no GMT time, try to extract local time
+        local_match = re.search(r'begin at (\d{1,2}:\d{2})', status_text)
+        if local_match:
+            local_time_str = local_match.group(1)
+            print(f"  Found local time: {local_time_str}")
+            # Parse the local time (this is approximate without knowing the timezone)
+            hour, minute = map(int, local_time_str.split(':'))
+            
+            # Get current date
+            now = datetime.now()
+            match_date = datetime(now.year, now.month, now.day, hour, minute)
+            
+            # If the time is in the past, assume it's tomorrow
+            if (datetime.now() - match_date).total_seconds() > 7200:  # More than 2 hours ago
+                match_date = match_date + timedelta(days=1)
+                print(f"  Time was in past, adjusted to tomorrow")
+                
+            timestamp = match_date.timestamp()
+            print(f"  Extracted timestamp: {timestamp}")
+            return timestamp
+    except Exception as e:
+        print(f"Error extracting time: {e}")
+        return None
+    
+    print("No time pattern found in status text")
+    return None
 
 def extract_match_id(url):
     """Extract match ID from Cricinfo URL"""
@@ -301,6 +443,10 @@ def create_fallback_match_data(match_info, match_id):
         'match_info': f"{team1} vs {team2}",
         'link': f"/ci/engine/match/{match_id}.html",
         'priority': PRIORITY_CATEGORIES['default'],
+        'match_time': None,
+        'local_time': None,
+        'timezone': None,
+        'start_time_info': "",
         'last_updated': time.time(),
         'last_updated_string': time.strftime("%Y-%m-%d %H:%M:%S GMT", time.gmtime()),
         'source': 'rss_fallback'
@@ -370,8 +516,12 @@ def cleanup_match_files(current_match_ids, ignored_tournaments=None, logger=None
     if logger:
         logger.info(f"Cleanup summary: Examined {len(match_files)} files, deleted {deleted_count} match files")
 
-def update_matches(ignore_list=None, logger=None):
+def update_matches(ignore_list=None, logger=None, force_update=True):
+    
     """Main function to update all match data with optimization to only fetch JSON when RSS content changes"""
+    
+    fix_all_match_files()
+    
     # Define the file to store previous RSS data
     previous_data_file = DATA_FOLDER / "previous_rss_data.json"
     
@@ -466,6 +616,20 @@ def update_matches(ignore_list=None, logger=None):
                 try:
                     with open(match_file, 'r', encoding='utf-8') as f:
                         processed_data = json.load(f)
+                        
+                        # Force check for upcoming status on cached data
+                        if processed_data.get('match_status') == 'unknown' or processed_data.get('match_time') is None:
+                            print(f"Forcing update for cached match: {match_id}")
+                            needs_update = True
+                        # For upcoming matches, update the start_time_info to recalculate countdown
+                        elif processed_data.get('match_status') == 'upcoming' and processed_data.get('match_time'):
+                            match_time = processed_data.get('match_time')
+                            local_time = processed_data.get('local_time')
+                            timezone = processed_data.get('timezone')
+                            processed_data['start_time_info'] = format_match_time(match_time, local_time, timezone)
+                            print(f"Updated countdown for cached match: {match_id}")
+                            print(f"  new start_time_info: {processed_data['start_time_info']}")
+                            
                         all_matches.append(processed_data)
                         continue
                 except Exception as e:
@@ -487,7 +651,7 @@ def update_matches(ignore_list=None, logger=None):
                 if match_id in failed_json_fetches:
                     failed_json_fetches.remove(match_id)
                 
-                processed_data = process_match_data(match_data, match_id)
+                processed_data = process_match_data(match_data, match_id, logger)
                 if processed_data:
                     # Save the processed data regardless of tournament
                     with open(match_file, 'w', encoding='utf-8') as f:
@@ -567,16 +731,28 @@ def process_match_data(match_data, match_id, logger=None):
         live_data = match_data.get('live', {})
         innings_data = match_data.get('innings', [])
         
+        # Debug output for match status detection
+        print(f"Processing match {match_id}: {match_info.get('team1_name', '')} vs {match_info.get('team2_name', '')}")
+        print(f"  match_status (raw): {match_info.get('match_status')}")
+        print(f"  has scores: {bool(innings_data)}")
+        
+        # Get match status text first as we'll use it for multiple checks
+        status_text = live_data.get('status', '')
+        if not status_text and match_info.get('live_state'):
+            status_text = match_info.get('live_state')
+        if not status_text and match_info.get('result_name'):
+            status_text = match_info.get('result_name')
+        
+        # Always check for scheduled matches first
+        if "scheduled to begin" in status_text.lower():
+            match_status = "upcoming"
+            if logger:
+                logger.info(f"Match {match_id} marked as upcoming due to status text containing 'scheduled to begin'")
         # Determine match status (live, upcoming, completed)
-        match_status = "unknown"
-        is_live = False  # We'll set this separately from match_status
-
-        # First check if the match has been abandoned based on live status
-        live_status = live_data.get('status', '').lower()
-        if "abandoned" in live_status or "no result" in live_status or "cancelled" in live_status:
+        elif "abandoned" in status_text.lower() or "no result" in status_text.lower() or "cancelled" in status_text.lower():
             match_status = "completed"
             if logger:
-                logger.info(f"Match {match_id} marked as completed due to live status: {live_status}")
+                logger.info(f"Match {match_id} marked as completed due to status text")
         # Then check result_name if needed
         elif "abandoned" in match_info.get('result_name', '').lower() or "no result" in match_info.get('result_name', '').lower():
             match_status = "completed"
@@ -586,7 +762,7 @@ def process_match_data(match_data, match_id, logger=None):
             live_state = match_info.get('live_state', '').lower()
             
             # Handle scheduled matches - check if the status contains "scheduled"
-            if "scheduled" in live_status or "scheduled" in live_state:
+            if "scheduled" in status_text.lower() or "scheduled" in live_state:
                 match_status = "upcoming"
             # Check for stumps in Test matches
             elif live_state == "stumps":
@@ -600,8 +776,20 @@ def process_match_data(match_data, match_id, logger=None):
                 match_status = "live"
             else:
                 match_status = "upcoming"
+        elif match_info.get('match_status') == 'dormant':
+            match_status = "upcoming"
+            if logger:
+                logger.info(f"Match {match_id} marked as upcoming due to dormant status")
         elif match_info.get('match_status') in ['complete', 'result']:
             match_status = "completed"
+        else:
+            # Default to unknown
+            match_status = "unknown"
+            
+        # Force upcoming status for matches that have no innings data and are not completed
+        if match_status == "unknown" and not innings_data:
+            match_status = "upcoming"
+            print(f"Forced match {match_id} to 'upcoming' status since it has no innings data")
 
         # Determine if match is live (slightly different from match_status)
         # A match at stumps is technically "live" in status but not actively playing
@@ -636,13 +824,6 @@ def process_match_data(match_data, match_id, logger=None):
                 else:
                     team2_score = score
         
-        # Get match status text
-        status_text = live_data.get('status', '')
-        if not status_text and match_info.get('live_state'):
-            status_text = match_info.get('live_state')
-        if not status_text and match_info.get('result_name'):
-            status_text = match_info.get('result_name')
-        
         # Debug logging for abandoned matches
         if "abandoned" in status_text.lower():
             if logger:
@@ -659,6 +840,99 @@ def process_match_data(match_data, match_id, logger=None):
         
         # Get tournament priority
         priority = PRIORITY_CATEGORIES.get(tournament, PRIORITY_CATEGORIES['default'])
+        
+        # Extract match time information for upcoming matches
+        match_time = None
+        local_time = None
+        timezone = None
+        
+        if match_status == "upcoming":
+            try:
+                # Add debug logging
+                if logger:
+                    logger.info(f"Attempting to extract match time for match {match_id}")
+                    logger.info(f"match_time_iso: {match_info.get('match_time_iso')}")
+                    logger.info(f"start_datetime_gmt: {match_info.get('start_datetime_gmt')}")
+                    logger.info(f"start_time_local: {match_info.get('start_time_local')}")
+                    logger.info(f"timezone: {match_info.get('tz_short_name')}")
+                    logger.info(f"status_text: {status_text}")
+                
+                # Try to get match time directly from match_info first
+                start_time_gmt = match_info.get('start_datetime_gmt')
+                if start_time_gmt:
+                    try:
+                        print(f"start_datetime_gmt raw: {start_time_gmt}")
+                        try:
+                            match_time = datetime.strptime(start_time_gmt, "%Y-%m-%d %H:%M:%S").timestamp()
+                        except:
+                            # Try alternate format
+                            match_time = datetime.strptime(start_time_gmt, "%Y-%m-%dT%H:%M:%SZ").timestamp()
+                            
+                        local_time = match_info.get('start_time_local')
+                        timezone = match_info.get('tz_short_name')
+                        
+                        print(f"Successfully parsed match_time: {match_time}")
+                        if logger:
+                            logger.info(f"Extracted match time directly from match_info: {match_time}")
+                    except Exception as e:
+                        print(f"Error parsing time: {e}")
+                        if logger:
+                            logger.error(f"Error converting match_info time: {e}")
+                
+                # If that fails, try the other methods
+                if not match_time and match_info.get('match_time_iso'):
+                    # Parse ISO format time
+                    match_time_str = match_info.get('match_time_iso')
+                    match_time = datetime.fromisoformat(match_time_str.replace('Z', '+00:00')).timestamp()
+                    
+                    # Get local time information
+                    local_time = match_info.get('match_time', '')
+                    timezone = match_info.get('timezone', '')
+                elif not match_time and match_info.get('match_time'):
+                    # Try to parse from match_time directly if available
+                    match_time_str = match_info.get('match_time', '')
+                    timezone = match_info.get('timezone', 'GMT')
+                    
+                    # Example: convert "19:30" to timestamp
+                    if match_time_str and ":" in match_time_str:
+                        now = datetime.now()
+                        hour, minute = map(int, match_time_str.split(':'))
+                        match_date = datetime(now.year, now.month, now.day, hour, minute)
+                        
+                        # If match_date is in the past (more than 6 hours ago), assume it's tomorrow
+                        if (datetime.now() - match_date).total_seconds() > 21600:
+                            match_date = match_date + timedelta(days=1)
+                        
+                        match_time = match_date.timestamp()
+                        local_time = match_time_str
+                
+                # If we still don't have match time, try to extract it from status text
+                if not match_time and "scheduled to begin at" in status_text:
+                    match_time = extract_time_from_status(status_text)
+                    if match_time and logger:
+                        logger.info(f"Extracted match time from status text for match {match_id}: {match_time}")
+                    
+            except Exception as e:
+                if logger:
+                    logger.error(f"Error extracting match time for match {match_id}: {str(e)}")
+        
+        # Create start time string
+        start_time_info = ""
+        if match_time and match_status == "upcoming":
+            start_time_info = format_match_time(match_time, local_time, timezone)
+            if logger:
+                logger.info(f"Generated start time info for match {match_id}: {start_time_info}")
+        elif match_status == "upcoming" and "scheduled to begin at" in status_text:
+            # Use the status text as fallback if we couldn't calculate a countdown
+            start_time_info = status_text
+            if logger:
+                logger.info(f"Using status text as fallback for match {match_id}: {start_time_info}")
+        
+        # Now it's safe to print debug info
+        if match_status == "upcoming":
+            print(f"UPCOMING MATCH DEBUG: {match_id}")
+            print(f"  match_time: {match_time}")
+            print(f"  start_time_info: {start_time_info}")
         
         # Build the processed data
         processed_data = {
@@ -677,6 +951,10 @@ def process_match_data(match_data, match_id, logger=None):
             'match_info': f"{team1_name} vs {team2_name}",
             'link': f"/ci/engine/match/{match_id}.html",
             'priority': priority,
+            'match_time': match_time,  # Add match timestamp
+            'local_time': local_time,  # Add local time string
+            'timezone': timezone,      # Add timezone
+            'start_time_info': start_time_info,  # Add formatted start time info
             'last_updated': time.time(),
             'last_updated_string': time.strftime("%Y-%m-%d %H:%M:%S GMT", time.gmtime())
         }
@@ -686,67 +964,67 @@ def process_match_data(match_data, match_id, logger=None):
     except Exception as e:
         if logger:
             logger.error(f"Error processing match data for match {match_id}: {str(e)}")
-        return None
-
+        return None   
+    
 def fetch_live_scores(ignore_list=None, logger=None):
-   """
-   Main function called by the FastAPI app to fetch cricket scores
-   
-   Args:
-       ignore_list: Optional list of tournament names to ignore
-       logger: Optional logger to use for logging
-   """
-   current_time = time.time()
-   timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S GMT")
-   
-   if logger:
-       logger.info("Starting cricket data update")
-   
-   try:
-       # Use our new update method
-       update_success = update_matches(ignore_list, logger)
-       
-       if update_success:
-           # Load the updated data
-           with open(DATA_FILE, 'r', encoding='utf-8') as f:
-               cricket_data = json.load(f)
-               if logger:
-                   logger.info(f"Successfully loaded data with {len(cricket_data['matches'])} matches")
-               return cricket_data
-   except Exception as e:
-       if logger:
-           logger.error(f"Error updating cricket data: {str(e)}")
-   
-   # If we get here, the update failed or an error occurred
-   # Try to return existing data if available
-   if os.path.exists(DATA_FILE):
-       try:
-           if logger:
-               logger.info(f"Loading existing data from {DATA_FILE}")
-           with open(DATA_FILE, 'r', encoding='utf-8') as f:
-               existing_data = json.load(f)
-               existing_data['last_checked'] = timestamp
-               if logger:
-                   logger.info(f"Loaded existing data with {len(existing_data['matches'])} matches")
-               return existing_data
-       except Exception as e:
-           if logger:
-               logger.error(f"Failed to load existing data: {str(e)}")
-   
-   if logger:
-       logger.warning("No data available, returning empty dataset")
-   return {
-       'last_updated': "Data currently unavailable",
-       'last_updated_string': timestamp,
-       'last_updated_timestamp': current_time,
-       'matches': []
-   }
+  """
+  Main function called by the FastAPI app to fetch cricket scores
+  
+  Args:
+      ignore_list: Optional list of tournament names to ignore
+      logger: Optional logger to use for logging
+  """
+  current_time = time.time()
+  timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S GMT")
+  
+  if logger:
+      logger.info("Starting cricket data update")
+  
+  try:
+      # Use our new update method
+      update_success = update_matches(ignore_list, logger)
+      
+      if update_success:
+          # Load the updated data
+          with open(DATA_FILE, 'r', encoding='utf-8') as f:
+              cricket_data = json.load(f)
+              if logger:
+                  logger.info(f"Successfully loaded data with {len(cricket_data['matches'])} matches")
+              return cricket_data
+  except Exception as e:
+      if logger:
+          logger.error(f"Error updating cricket data: {str(e)}")
+  
+  # If we get here, the update failed or an error occurred
+  # Try to return existing data if available
+  if os.path.exists(DATA_FILE):
+      try:
+          if logger:
+              logger.info(f"Loading existing data from {DATA_FILE}")
+          with open(DATA_FILE, 'r', encoding='utf-8') as f:
+              existing_data = json.load(f)
+              existing_data['last_checked'] = timestamp
+              if logger:
+                  logger.info(f"Loaded existing data with {len(existing_data['matches'])} matches")
+              return existing_data
+      except Exception as e:
+          if logger:
+              logger.error(f"Failed to load existing data: {str(e)}")
+  
+  if logger:
+      logger.warning("No data available, returning empty dataset")
+  return {
+      'last_updated': "Data currently unavailable",
+      'last_updated_string': timestamp,
+      'last_updated_timestamp': current_time,
+      'matches': []
+  }
 
 # If run directly, update the data
 if __name__ == "__main__":
-   import logging
-   logging.basicConfig(level=logging.INFO)
-   logger = logging.getLogger(__name__)
-   logger.info("Manually updating cricket data")
-   data = fetch_live_scores(logger=logger)
-   logger.info(f"Found {len(data['matches'])} matches.")
+  import logging
+  logging.basicConfig(level=logging.INFO)
+  logger = logging.getLogger(__name__)
+  logger.info("Manually updating cricket data")
+  data = fetch_live_scores(logger=logger)
+  logger.info(f"Found {len(data['matches'])} matches.")

@@ -10,6 +10,8 @@ import time
 import json
 import os
 import logging.handlers
+import re
+
 
 from app.data_fetcher import fetch_live_scores, DATA_FILE, DATA_FOLDER, IGNORED_TOURNAMENTS
 
@@ -64,6 +66,7 @@ def calculate_time_ago(timestamp):
         else:
             return f"{minutes_ago} minutes ago"
 
+
 def load_cricket_data():
     """Load cricket data from the JSON file and update timestamp values"""
     if os.path.exists(DATA_FILE):
@@ -94,6 +97,8 @@ def format_match_for_display(match, use_symbols=True):
     category = match.get('category', '')
     live_state = match.get('live_state', '').lower()
     description = match.get('description', '')
+    match_status = match.get('match_status', '')
+    start_time_info = match.get('start_time_info', '')
     
     # Extract date, match number and venue from description
     match_date = ""
@@ -227,23 +232,32 @@ def format_match_for_display(match, use_symbols=True):
     # Add separator before status
     box_lines.append(score_separator)
     
-    # Add match status with wrapping
-    words = status.split()
-    current_line = ""
+    # For upcoming matches, use start_time_info instead of status if available
+    if match_status == "upcoming" and start_time_info:
+        status = start_time_info
+    
+    # Add match status with wrapping - Improved to handle newlines properly
     status_lines = []
     
-    for word in words:
-        if len(current_line) + len(word) + 1 <= INNER_WIDTH:
-            if current_line:
-                current_line += " " + word
+    # First, split by explicit newlines
+    status_parts = status.split('\n')
+    for part in status_parts:
+        # Then process each part as a wrapped paragraph
+        words = part.split()
+        current_line = ""
+        
+        for word in words:
+            if len(current_line) + len(word) + 1 <= INNER_WIDTH:
+                if current_line:
+                    current_line += " " + word
+                else:
+                    current_line = word
             else:
+                status_lines.append(current_line)
                 current_line = word
-        else:
+                
+        if current_line:
             status_lines.append(current_line)
-            current_line = word
-            
-    if current_line:
-        status_lines.append(current_line)
     
     for line in status_lines:
         box_lines.append(f"| {line.ljust(INNER_WIDTH)} |")
@@ -259,7 +273,6 @@ def format_match_for_display(match, use_symbols=True):
     box_text = "\n".join(box_lines)
     
     return box_text
-
 
 # Add custom Jinja2 filters
 @app.on_event("startup")
@@ -450,6 +463,11 @@ async def plain_text(request: Request):
     output.append("=================================================================")
     output.append(f"Last updated: {cricket_data.get('last_updated_string', 'Unknown')} ({time_ago})")
     
+    # Add next update info if available
+    now = time.time()
+    if NEXT_UPDATE_TIMESTAMP["time"] > now:
+        next_update_mins = max(1, round((NEXT_UPDATE_TIMESTAMP["time"] - now) / 60))
+        output.append(f"Next update in approximately {next_update_mins} minutes.")
     
     output.append("Refresh page to update scores.")
     
