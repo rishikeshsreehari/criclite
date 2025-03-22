@@ -50,12 +50,31 @@ last_cricket_data = None
 current_update_interval = 180  # 3 minutes
 next_update_time = None
 
+
+def calculate_time_ago(timestamp):
+    """Calculate a human-readable time ago string"""
+    seconds_ago = int(time.time() - timestamp)
+    
+    if seconds_ago < 60:
+        return f"{seconds_ago} seconds ago"
+    else:
+        minutes_ago = seconds_ago // 60
+        if minutes_ago == 1:
+            return "1 minute ago"
+        else:
+            return f"{minutes_ago} minutes ago"
+
 def load_cricket_data():
-    """Load cricket data from the JSON file"""
+    """Load cricket data from the JSON file and update timestamp values"""
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Update the timestamps to reflect current time
+                current_time = time.time()
+                data['current_time'] = current_time
+                data['time_ago'] = calculate_time_ago(data.get('last_updated', current_time))
+                return data
         except:
             pass
     return default_cricket_data
@@ -251,6 +270,7 @@ async def add_jinja_filters():
     templates.env.filters["truncate"] = lambda s, length: str(s)[:length] if s else ""
     templates.env.filters["default"] = lambda s, default_value: s if s else default_value
 
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     """Serve the main page with cricket scores, grouped by status"""
@@ -261,19 +281,11 @@ async def root(request: Request):
     # Load the latest cricket data
     cricket_data = load_cricket_data()
     
-    # Calculate how long since the last update
-    seconds_ago = int(time.time() - cricket_data.get('last_updated', time.time()))
-    
-    if seconds_ago < 60:
-        time_ago = f"{seconds_ago} seconds ago"
-    else:
-        minutes_ago = seconds_ago // 60
-        if minutes_ago == 1:
-            time_ago = "1 minute ago"
-        else:
-            time_ago = f"{minutes_ago} minutes ago"
+    # Use the pre-calculated time_ago value
+    time_ago = cricket_data.get('time_ago', "Unknown time ago")
     
     # Add cache control headers based on data freshness
+    seconds_ago = int(time.time() - cricket_data.get('last_updated', time.time()))
     cache_time = 60 if seconds_ago < 120 else 30
     
     # Group matches by status
@@ -381,6 +393,9 @@ async def plain_text(request: Request):
     # Load the latest cricket data
     cricket_data = load_cricket_data()
     
+    # Use the pre-calculated time_ago
+    time_ago = cricket_data.get('time_ago', "Unknown time ago")
+    
     # Group matches by status
     live_matches = []
     completed_matches = []
@@ -433,14 +448,8 @@ async def plain_text(request: Request):
             output.append("")  # Add space between matches
     
     output.append("=================================================================")
-    output.append(f"Last updated: {cricket_data.get('last_updated_string', 'Unknown')}")
+    output.append(f"Last updated: {cricket_data.get('last_updated_string', 'Unknown')} ({time_ago})")
     
-    # Add next update info if available
-    if next_update_time:
-        now = time.time()
-        if next_update_time > now:
-            next_update_mins = round((next_update_time - now) / 60)
-            output.append(f"Next update in approximately {next_update_mins} minutes.")
     
     output.append("Refresh page to update scores.")
     
@@ -454,6 +463,7 @@ async def plain_text(request: Request):
     response.headers["Vary"] = "Cookie"
     
     return response
+
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
