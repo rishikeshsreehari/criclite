@@ -60,8 +60,9 @@ def load_cricket_data():
             pass
     return default_cricket_data
 
+
 def format_match_for_display(match, use_symbols=True):
-    """Format a match into a nice ASCII box with consistent dimensions"""
+    """Format a match into a consistent ASCII box with fixed borders"""
     
     # Get match data
     match_info = match.get('match_info', '')
@@ -73,20 +74,53 @@ def format_match_for_display(match, use_symbols=True):
     is_live = match.get('is_live', False)
     category = match.get('category', '')
     live_state = match.get('live_state', '').lower()
+    description = match.get('description', '')
+    
+    # Extract date, match number and venue from description
+    match_date = ""
+    match_number = ""
+    venue_info = ""
+    
+    if description:
+        # Try to extract date
+        parts = description.split(", ")
+        if len(parts) > 1:
+            # Last part typically contains date
+            date_part = parts[-1]
+            if date_part:
+                match_date = date_part
+        
+        # Extract match number
+        if ": " in description:
+            parts = description.split(": ")
+            if len(parts) > 0:
+                details = parts[0]
+                if "Match" in details or "T20I" in details or "ODI" in details:
+                    for part in details.split(", "):
+                        if "Match" in part or "T20I" in part or "ODI" in part:
+                            match_number = part.strip()
+                            break
+        
+        # Extract venue
+        if " at " in description:
+            parts = description.split(" at ")
+            if len(parts) > 1:
+                venue_part = parts[1]
+                if ", " in venue_part:
+                    venue_info = venue_part.split(", ")[0].strip()
     
     # Determine prefix for match info
-    info_prefix = ""
+    status_prefix = ""
     if is_live:
-        info_prefix = "[LIVE] "
+        status_prefix = "[LIVE] "
     elif live_state == "stumps":
-        info_prefix = "[STUMPS] "
+        status_prefix = "[STUMPS] "
     
-    # Fixed dimensions - these should never change
-    OUTER_WIDTH = 41  # Total width including borders
-    INNER_WIDTH = 37  # Content width
-    STANDARD_HEIGHT = 13  # Standard number of lines for each box
+    # Fixed dimensions
+    OUTER_WIDTH = 41
+    INNER_WIDTH = 37
     
-    # Create a standard box template
+    # Create box template
     top_border = "+" + "-" * (OUTER_WIDTH - 2) + "+"
     bottom_border = top_border
     empty_line = "| " + " " * INNER_WIDTH + " |"
@@ -96,163 +130,117 @@ def format_match_for_display(match, use_symbols=True):
     box_lines = []
     box_lines.append(top_border)
     
-    # Format match info with the appropriate prefix
-    match_info_cleaned = match_info.replace("\n", " ").strip()
-    
-    # Split match info into lines that fit
-    info_lines = []
-    current_line = info_prefix
-    
-    for word in match_info_cleaned.split():
-        if len(current_line + word) + 1 <= INNER_WIDTH:
-            current_line += (word + " ")
+    # Format header with date, match number and venue
+    header = ""
+    if match_date:
+        header = match_date
+    if match_number:
+        if header:
+            header += f" - {match_number}"
         else:
-            info_lines.append(current_line.strip())
-            current_line = word + " "
+            header = match_number
+    if venue_info:
+        if header:
+            header += f" at {venue_info}"
+        else:
+            header = f"at {venue_info}"
     
-    if current_line.strip():
-        info_lines.append(current_line.strip())
+    # Add status prefix if needed
+    if status_prefix:
+        header = status_prefix + header
     
-    # Add match info lines to box
-    for line in info_lines:
-        padded_line = line.ljust(INNER_WIDTH)
-        box_lines.append(f"| {padded_line} |")
+    # Add header with wrapping for long headers
+    if header:
+        # Split into words and build lines
+        words = header.split()
+        current_line = ""
+        
+        for word in words:
+            if len(current_line) + len(word) + 1 <= INNER_WIDTH:
+                if current_line:
+                    current_line += " " + word
+                else:
+                    current_line = word
+            else:
+                box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
+                current_line = word
+                
+        if current_line:
+            box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
     
     # Add empty line
     box_lines.append(empty_line)
     
-    # Add tournament category
+    # Add tournament category with wrapping
     if category:
-        # Handle long category names by wrapping if needed
-        if len(category) > INNER_WIDTH:
-            # Split long category name into multiple lines
-            cat_words = category.split()
-            cat_line = ""
-            for word in cat_words:
-                if len(cat_line + word) + 1 <= INNER_WIDTH:
-                    cat_line += (word + " ")
-                else:
-                    box_lines.append(f"| {cat_line.strip().ljust(INNER_WIDTH)} |")
-                    cat_line = word + " "
-            
-            if cat_line.strip():
-                box_lines.append(f"| {cat_line.strip().ljust(INNER_WIDTH)} |")
-        else:
-            category_line = category[:INNER_WIDTH].ljust(INNER_WIDTH)
-            box_lines.append(f"| {category_line} |")
+        words = category.split()
+        current_line = ""
         
+        for word in words:
+            if len(current_line) + len(word) + 1 <= INNER_WIDTH:
+                if current_line:
+                    current_line += " " + word
+                else:
+                    current_line = word
+            else:
+                box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
+                current_line = word
+                
+        if current_line:
+            box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
+            
+        # Add empty line after category
         box_lines.append(empty_line)
     
-    # Add separator before scores
+    # Add separator before teams/scores
     box_lines.append(score_separator)
     
-    # Process team scores
-    # Team 1 and score
-    if len(team1) + len(score1) + 1 <= INNER_WIDTH:
-        # Can fit on one line
-        box_lines.append(f"| {(team1 + ' ' + score1).ljust(INNER_WIDTH)} |")
-    else:
-        # Need to split across lines
-        box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+    # Add team 1 with score
+    box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+    if score1:
         box_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
     
-    # Team 2 and score
-    # Team 2 and score
-    if len(team2) + len(score2) + 1 <= INNER_WIDTH:
-        # Can fit on one line
-        box_lines.append(f"| {(team2 + ' ' + score2).ljust(INNER_WIDTH)} |")
-    else:
-        # Need to split across lines
-        box_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+    # Add team 2 with score
+    box_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+    if score2:
         box_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
     
-    # Add separator after scores
+    # Add separator before status
     box_lines.append(score_separator)
     
-    # Process status text with wrapping
-    status_words = status.split()
-    status_line = ""
+    # Add match status with wrapping
+    words = status.split()
+    current_line = ""
     status_lines = []
     
-    for word in status_words:
-        if len(status_line + word) + 1 <= INNER_WIDTH:
-            status_line += (word + " ")
+    for word in words:
+        if len(current_line) + len(word) + 1 <= INNER_WIDTH:
+            if current_line:
+                current_line += " " + word
+            else:
+                current_line = word
         else:
-            status_lines.append(status_line.strip())
-            status_line = word + " "
+            status_lines.append(current_line)
+            current_line = word
+            
+    if current_line:
+        status_lines.append(current_line)
     
-    if status_line.strip():
-        status_lines.append(status_line.strip())
-    
-    # Add status lines
     for line in status_lines:
         box_lines.append(f"| {line.ljust(INNER_WIDTH)} |")
+    
+    # Add an empty line if there's space
+    if len(box_lines) < 12:  # Assuming we want about 13 lines total with borders
+        box_lines.append(empty_line)
     
     # Add bottom border
     box_lines.append(bottom_border)
     
-    # Ensure exact height matching
-    if len(box_lines) < STANDARD_HEIGHT:
-        # Box is too short, add empty lines before bottom border
-        bottom_border = box_lines.pop()  # Remove bottom border
-        
-        # Add empty lines until we reach the standard height - 1
-        while len(box_lines) < STANDARD_HEIGHT - 1:
-            box_lines.append(empty_line)
-            
-        # Add back bottom border
-        box_lines.append(bottom_border)
-    elif len(box_lines) > STANDARD_HEIGHT:
-        # Box is too tall, need to trim intelligently
-        
-        # Find score separators
-        separator_indices = []
-        for i, line in enumerate(box_lines):
-            if line == score_separator:
-                separator_indices.append(i)
-        
-        if len(separator_indices) == 2:
-            # Extract critical sections
-            header = box_lines[:3]  # Top border + 2 info lines
-            footer = box_lines[-2:]  # Last status line + bottom border
-            
-            # Get score section including separators
-            score_start = separator_indices[0]
-            score_end = separator_indices[1]
-            scores = box_lines[score_start:score_end+1]
-            
-            # Calculate space for middle info and status
-            remaining_lines = STANDARD_HEIGHT - len(header) - len(scores) - len(footer)
-            
-            # Distribute remaining lines - prioritize status over middle info
-            status_section = box_lines[score_end+1:-2]
-            middle_section = box_lines[3:score_start]
-            
-            status_lines_to_keep = min(len(status_section), remaining_lines - 1)
-            middle_lines_to_keep = remaining_lines - status_lines_to_keep
-            
-            # Make sure we don't have negative counts
-            middle_lines_to_keep = max(0, middle_lines_to_keep)
-            status_lines_to_keep = max(0, remaining_lines - middle_lines_to_keep)
-            
-            # Get the sections to keep
-            middle = middle_section[:middle_lines_to_keep]
-            status = status_section[:status_lines_to_keep]
-            
-            # Rebuild the box with exact height
-            box_lines = header + middle + scores + status + footer
-        else:
-            # Fallback - just keep the top and bottom parts
-            box_lines = box_lines[:6] + box_lines[-7:]
-            
-            # If still too long, just force it to standard height
-            if len(box_lines) > STANDARD_HEIGHT:
-                box_lines = box_lines[:STANDARD_HEIGHT]
-    
-    # Convert to a string with line breaks
+    # Convert to string
     box_text = "\n".join(box_lines)
     
     return box_text
+
 
 # Add custom Jinja2 filters
 @app.on_event("startup")

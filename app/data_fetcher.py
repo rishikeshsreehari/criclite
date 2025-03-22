@@ -49,13 +49,13 @@ PRIORITY_CATEGORIES = {
 
 # Define tournaments to be ignored
 IGNORED_TOURNAMENTS = [
-    #"Dhaka Premier Division Cricket League",
-    #"National Super League 4-Day Tournament",
-    #"CSA 4-Day Series Division 2",
-    #"CSA 4-Day Series Division 1",
-    #"Men's PM Cup", 
-    #"National T20 Cup",
-    #"Plunket Shield",
+    "Dhaka Premier Division Cricket League",
+    "National Super League 4-Day Tournament",
+    "CSA 4-Day Series Division 2",
+    "CSA 4-Day Series Division 1",
+    "Men's PM Cup", 
+    "National T20 Cup",
+    "Plunket Shield",
     # Add any other tournaments you want to ignore
 ]
 
