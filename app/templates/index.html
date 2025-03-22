@@ -1,337 +1,66 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="120">
-    <title>CricLite - Plain Text Live Cricket Scores</title>
-    <style>
-        :root {
-            --bg-color: #fff;
-            --text-color: #000;
-            --border-color: #555;
-            --link-color: #000;
-            --link-hover-color: #444;
-        }
-        
-        [data-theme="dark"] {
-            --bg-color: #222;
-            --text-color: #ddd;
-            --border-color: #888;
-            --link-color: #ddd;
-            --link-hover-color: #fff;
-        }
-        
-        body {
-            font-family: monospace;
-            margin: 0;
-            padding: 5px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            text-align: center;
-            max-width: 100%;
-            overflow-x: hidden;
-        }
-        
-        .container {
-            margin: 0 auto;
-            padding: 0;
-            max-width: 1200px;
-        }
-        
-        pre {
-            margin: 0;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-width: 100%;
-            overflow: visible;
-            color: var(--text-color);
-            text-align: center;
-        }
-        
-        .site-title {
-            font-size: 28px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            margin: 10px auto 2px;
-            line-height: 1;
-            text-align: center;
-            width: 100%;
-            overflow: visible;
-            display: block;
-        }
-        
-        .site-subtitle {
-            font-size: 14px;
-            margin-top: 0;
-            margin-bottom: 5px;
-            text-align: center;
-            width: 100%;
-            overflow: visible;
-            display: block;
-        }
-        
-        .divider {
-            font-weight: bold;
-            margin: 5px 0;
-        }
-        
-        .section {
-            margin: 15px 0;
-            text-align: center;
-        }
-        
-        .section-title {
-            font-weight: bold;
-            font-size: 18px;
-            margin: 15px auto 5px;
-            display: inline-block;
-            overflow: visible;
-        }
-        
-        .match-row {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: flex-start;
-            column-gap: 20px;
-            row-gap: 10px;
-            margin: 0 auto;
-            width: 100%;
-        }
-        
-        .match-col {
-            font-family: monospace;
-            white-space: pre;
-            line-height: 1.2;
-            margin: 5px 0;
-            overflow: hidden;
-            font-size: 14px;
-            width: 41ch;
-            text-align: left;
-        }
-        
-        /* Theme toggle styles */
-        .theme-toggle {
-            margin: 10px auto;
-            font-size: 14px;
-        }
-        
-        .theme-toggle a {
-            color: var(--link-color);
-            text-decoration: underline;
-        }
-        
-        .theme-toggle a:hover {
-            text-decoration: none;
-            color: var(--link-hover-color);
-        }
-        
-        .terminal-section {
-            margin: 15px auto;
-            font-family: monospace;
-            text-align: center;
-            width: 100%;
-            max-width: 100%;
-        }
-        
-        .terminal-header {
-            margin-bottom: 5px;
-            font-weight: bold;
-            text-align: center;
-        }
-        
-        .terminal-cmd {
-            margin: 5px 0;
-            text-align: center;
-        }
-        
-        .terminal-cmd code {
-            background-color: rgba(128, 128, 128, 0.1);
-            padding: 2px 5px;
-            border-radius: 3px;
-        }
-        
-        /* Footer styles */
-        .footer-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            margin: 15px auto 5px;
-            text-align: center;
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 10px;
-            width: 100%;
-            padding: 0 10px;
-            text-align: center;
-        }
-        
-        .footer-links a {
-            color: var(--link-color);
-            text-decoration: underline;
-        }
-        
-        .footer-links a:hover {
-            text-decoration: none;
-            color: var(--link-hover-color);
-        }
-        
-        .builder {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-            width: 100%;
-            text-align: center;
-            margin-bottom: 5px;
-        }
-        
-        .version-tag {
-            font-size: 0.7em;
-            font-weight: 300;
-            display: block;
-            text-align: center;
-            width: 100%;
-            margin-top: 5px;
-            color: var(--text-color);
-            opacity: 0.8;
-        }
-        
-        /* Responsive styles */
-        @media (max-width: 860px) {
-            .match-row {
-                column-gap: 10px;
-            }
-        }
-        
-        @media (max-width: 650px) {
-            .match-col {
-                font-size: 12px;
-                width: 100%;
-                max-width: 41ch;
-                margin: 5px auto;
-            }
-            
-            .site-title {
-                font-size: 24px;
-            }
-            
-            .footer-links {
-                gap: 10px;
-            }
-            
-            .footer-links a {
-                font-size: 13px;
-            }
-            
-            .builder {
-                font-size: 13px;
-            }
-        }
+{% extends "base.html" %}
 
-        /* Add this to your CSS */
-        .builder a {
-            color: var(--text-color);
-            text-decoration: underline;
-        }
+{% block title %}CricLite - Plain Text Live Cricket Scores{% endblock %}
 
-        .builder a:hover {
-            color: var(--link-hover-color);
-        }
-        
-        .timestamp-info {
-            text-align: center;
-            margin: 10px auto;
-            width: 100%;
-            font-family: monospace;
-        }
-    </style>
-    <script data-goatcounter="https://criclite.goatcounter.com/count"
-        async src="//gc.zgo.at/count.js"></script>
-</head>
-<body data-theme="{{ theme }}">
-    <div class="container">
-        <pre class="site-title">CRICLITE</pre>
-        <pre class="site-subtitle">Plain text live cricket scores.</pre>
-        
-        <div class="theme-toggle">
-            <a href="/toggle-theme" style="text-decoration: none"> {{ "[Light] " if theme == "dark" else "[Dark]" }}</a>
-        </div>
-        
-        <pre class="divider">=========================================</pre>
+{% block content %}
+<a href="/" style="text-decoration: none; color: inherit;">
+    <pre class="site-title">CRICLITE</pre>
+</a>
+<pre class="site-subtitle">Plain text live cricket scores.</pre>
 
-        {% if live_matches %}
-        <div class="section">
-            <pre class="section-title">[LIVE]
+<div class="theme-toggle">
+    <a href="/toggle-theme" style="text-decoration: none"> {{ "[Light] " if theme == "dark" else "[Dark]" }}</a>
+</div>
+
+<pre class="divider">=========================================</pre>
+
+{% if live_matches %}
+<div class="section">
+    <pre class="section-title">[LIVE]
 =============</pre>
-            <div class="match-row">
-                {% for match in live_matches %}
-                <div class="match-col">{{ match | safe }}</div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        {% if upcoming_matches %}
-        <div class="section">
-            <pre class="section-title">[UPCOMING]
-=============</pre>
-            <div class="match-row">
-                {% for match in upcoming_matches %}
-                <div class="match-col">{{ match | safe }}</div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        {% if completed_matches %}
-        <div class="section">
-            <pre class="section-title">[COMPLETED]
-=============</pre>
-            <div class="match-row">
-                {% for match in completed_matches %}
-                <div class="match-col">{{ match | safe }}</div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        <pre class="divider">=========================================</pre>
-        <br>
-        <div class="terminal-section">
-            <div class="terminal-header">Access via Terminal</div>
-            <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
-            <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
-        </div>    
-
-        <div class="timestamp-info">
-            <p>Last updated: {{ last_updated }} ({{ time_ago }})<br>
-            {% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.<br>{% endif %}
-            Page auto-refreshes every 2 minutes.</p>
-        </div>
-
-        <div class="footer-container">
-            <div class="footer-links">
-                <a href="/about">About</a>
-                <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
-                <a href="https://ko-fi.com/rishikeshs" target="_blank">Support</a>
-                <a href="/plain.txt">plain.txt</a>
-            </div>
-
-            <div class="builder">
-                Built by&nbsp;<a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank">Rishikesh</a>
-            </div>
-            
-            <div class="version-tag">v0.1.1</div>
-        </div>
+    <div class="match-row">
+        {% for match in live_matches %}
+        <div class="match-col">{{ match | safe }}</div>
+        {% endfor %}
     </div>
-</body>
-</html>
+</div>
+{% endif %}
+
+{% if upcoming_matches %}
+<div class="section">
+    <pre class="section-title">[UPCOMING]
+=============</pre>
+    <div class="match-row">
+        {% for match in upcoming_matches %}
+        <div class="match-col">{{ match | safe }}</div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if completed_matches %}
+<div class="section">
+    <pre class="section-title">[COMPLETED]
+=============</pre>
+    <div class="match-row">
+        {% for match in completed_matches %}
+        <div class="match-col">{{ match | safe }}</div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<pre class="divider">=========================================</pre>
+<br>
+<div class="terminal-section">
+    <div class="terminal-header">Access via Terminal</div>
+    <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
+    <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
+</div>    
+
+<div class="timestamp-info">
+    <p>Last updated: {{ last_updated }} ({{ time_ago }})<br>
+    {% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.<br>{% endif %}
+    Page auto-refreshes every 2 minutes.</p>
+</div>
+{% endblock %}

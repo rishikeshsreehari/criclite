@@ -1,0 +1,275 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="120">
+<meta name="description" content="CricLite - Simple, plain text cricket scores. Live updates for cricket matches from around the world.">
+<meta name="keywords" content="cricket, scores, live scores, cricket match, plain text, terminal">
+<meta name="author" content="Rishikesh Sreehari">
+
+<!-- Open Graph metadata -->
+<meta property="og:title" content="CricLite - Plain Text Live Cricket Scores">
+<meta property="og:description" content="Simple, plain text cricket scores. Live updates for cricket matches from around the world.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://criclite.com">
+<meta property="og:image" content="https://criclite.com/static/og-image.png">
+
+<!-- Twitter Card metadata -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="CricLite - Plain Text Cricket Scores Live">
+<meta name="twitter:description" content="Simple, plain text cricket scores for all international and major league matches.">
+<meta name="twitter:image" content="https://criclite.com/static/og-image.png">
+
+<title>{% block title %}CricLite - Plain Text Live Cricket Scores{% endblock %}</title>
+<link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+<link rel="canonical" href="https://criclite.com{{ request.url.path }}">
+
+<style>
+    :root {
+        --bg-color: #fff;
+        --text-color: #000;
+        --border-color: #555;
+        --link-color: #000;
+        --link-hover-color: #444;
+    }
+    
+    [data-theme="dark"] {
+        --bg-color: #222;
+        --text-color: #ddd;
+        --border-color: #888;
+        --link-color: #ddd;
+        --link-hover-color: #fff;
+    }
+    
+    body {
+        font-family: monospace;
+        margin: 0;
+        padding: 5px;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        text-align: center;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    .container {
+        margin: 0 auto;
+        padding: 0;
+        max-width: 1200px;
+    }
+    
+    pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-width: 100%;
+        overflow: visible;
+        color: var(--text-color);
+        text-align: center;
+    }
+    
+    .site-title {
+        font-size: 28px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        margin: 10px auto 2px;
+        line-height: 1;
+        text-align: center;
+        width: 100%;
+        overflow: visible;
+        display: block;
+    }
+    
+    .site-subtitle {
+        font-size: 14px;
+        margin-top: 0;
+        margin-bottom: 5px;
+        text-align: center;
+        width: 100%;
+        overflow: visible;
+        display: block;
+    }
+    
+    .divider {
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    
+    .section {
+        margin: 15px 0;
+        text-align: center;
+    }
+    
+    .section-title {
+        font-weight: bold;
+        font-size: 18px;
+        margin: 15px auto 5px;
+        display: inline-block;
+        overflow: visible;
+    }
+    
+    .match-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: flex-start;
+        column-gap: 20px;
+        row-gap: 10px;
+        margin: 0 auto;
+        width: 100%;
+    }
+    
+    .match-col {
+        font-family: monospace;
+        white-space: pre;
+        line-height: 1.2;
+        margin: 5px 0;
+        overflow: hidden;
+        font-size: 14px;
+        width: 41ch;
+        text-align: left;
+    }
+    
+    /* Theme toggle styles */
+    .theme-toggle {
+        margin: 10px auto;
+        font-size: 14px;
+    }
+    
+    .theme-toggle a {
+        color: var(--link-color);
+        text-decoration: underline;
+    }
+    
+    .theme-toggle a:hover {
+        text-decoration: none;
+        color: var(--link-hover-color);
+    }
+    
+    .terminal-section {
+        margin: 15px auto;
+        font-family: monospace;
+        text-align: center;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .terminal-header {
+        margin-bottom: 5px;
+        font-weight: bold;
+        text-align: center;
+    }
+    
+    .terminal-cmd {
+        margin: 5px 0;
+        text-align: center;
+    }
+    
+    .terminal-cmd code {
+        background-color: rgba(128, 128, 128, 0.1);
+        padding: 2px 5px;
+        border-radius: 3px;
+    }
+    
+    /* Footer styles */
+    .footer-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        margin: 15px auto 5px;
+        text-align: center;
+    }
+    
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 10px;
+        width: 100%;
+        padding: 0 10px;
+        text-align: center;
+    }
+    
+    .footer-links a {
+        color: var(--link-color);
+        text-decoration: underline;
+    }
+    
+    .footer-links a:hover {
+        text-decoration: none;
+        color: var(--link-hover-color);
+    }
+    
+    .builder {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    
+    .version-tag {
+        font-size: 0.7em;
+        font-weight: 300;
+        display: block;
+        text-align: center;
+        width: 100%;
+        margin-top: 5px;
+        color: var(--text-color);
+        opacity: 0.8;
+    }
+    
+    /* Responsive styles */
+    @media (max-width: 860px) {
+        .match-row {
+            column-gap: 10px;
+        }
+    }
+    
+    @media (max-width: 650px) {
+        .match-col {
+            font-size: 12px;
+            width: 100%;
+            max-width: 41ch;
+            margin: 5px auto;
+        }
+        
+        .site-title {
+            font-size: 24px;
+        }
+        
+        .footer-links {
+            gap: 10px;
+        }
+        
+        .footer-links a {
+            font-size: 13px;
+        }
+        
+        .builder {
+            font-size: 13px;
+        }
+    }
+
+    /* Add this to your CSS */
+    .builder a {
+        color: var(--text-color);
+        text-decoration: underline;
+    }
+
+    .builder a:hover {
+        color: var(--link-hover-color);
+    }
+    
+    .timestamp-info {
+        text-align: center;
+        margin: 10px auto;
+        width: 100%;
+        font-family: monospace;
+    }
+</style>
+<script data-goatcounter="https://criclite.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

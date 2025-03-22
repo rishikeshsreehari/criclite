@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}About CricLite - Plain Text Cricket Scores{% endblock %}
+
+{% block content %}
+<a href="/" style="text-decoration: none; color: inherit;">
+    <pre class="site-title">CRICLITE</pre>
+</a>
+<pre class="site-subtitle">Plain text live cricket scores.</pre>
+
+
+<div class="theme-toggle">
+    <a href="/toggle-theme" style="text-decoration: none"> {{ "[Light] " if theme == "dark" else "[Dark]" }}</a>
+</div>
+
+<pre class="divider">=========================================</pre>
+
+<div class="about-content">
+    <h1>About CricLite</h1>
+    
+    <p>CricLite is a minimalist cricket score website designed for quick access to live match information, 
+    with a focus on simplicity and performance.</p>
+    
+    <h2>Features</h2>
+    <ul>
+        <li>Plain text interface - works on any device or browser</li>
+        <li>Fast loading - minimal overhead and no bulky JavaScript</li>
+        <li>Terminal friendly - easily view scores in your command line</li>
+        <li>Live updates - scores refresh automatically</li>
+        <li>Dark and light themes</li>
+    </ul>
+    
+    <h2>Why Plain Text?</h2>
+    <p>CricLite embraces simplicity. The plain text format loads quickly on slow connections and displays 
+    consistently across all devices. It's also perfect for viewing in terminal windows or text-only browsers.</p>
+    
+    <h2>Terminal Access</h2>
+    <p>Get live scores directly in your terminal:</p>
+    <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
+    <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
+    
+    <h2>About the Developer</h2>
+    <p>CricLite was created by <a href="https://rishikeshs.com" target="_blank">Rishikesh</a>, 
+    a software developer and cricket enthusiast. You can find more of my projects on 
+    <a href="https://github.com/rishikeshsreehari" target="_blank">GitHub</a>.</p>
+    
+    <h2>Open Source</h2>
+    <p>CricLite is open source software. You can view the code and contribute on 
+    <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">GitHub</a>.</p>
+    
+    <h2>Support</h2>
+    <p>If you find CricLite useful, consider supporting the project on 
+    <a href="https://ko-fi.com/rishikeshs" target="_blank">Ko-fi</a>.</p>
+    
+    <a href="/" class="back-link">← Back to scores</a>
+</div>
+
+<style>
+    .about-content {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: left;
+        line-height: 1.6;
+    }
+    
+    .about-content h1 {
+        font-size: 1.8em;
+        margin-top: 1em;
+    }
+    
+    .about-content h2 {
+        font-size: 1.4em;
+        margin-top: 1.5em;
+    }
+    
+    .about-content p, .about-content li {
+        margin-bottom: 1em;
+    }
+    
+    .about-content ul {
+        padding-left: 2em;
+    }
+    
+    .back-link {
+        display: inline-block;
+        margin: 2em 0;
+        color: var(--link-color);
+        text-decoration: underline;
+    }
+    
+    .back-link:hover {
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
