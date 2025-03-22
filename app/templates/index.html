@@ -46,6 +46,7 @@
             max-width: 100%;
             overflow: visible;
             color: var(--text-color);
+            text-align: center;
         }
         
         .site-title {
@@ -130,15 +131,19 @@
             margin: 15px auto;
             font-family: monospace;
             text-align: center;
+            width: 100%;
+            max-width: 100%;
         }
         
         .terminal-header {
             margin-bottom: 5px;
             font-weight: bold;
+            text-align: center;
         }
         
         .terminal-cmd {
             margin: 5px 0;
+            text-align: center;
         }
         
         .terminal-cmd code {
@@ -152,6 +157,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             width: 100%;
             margin: 15px auto 5px;
             text-align: center;
@@ -165,6 +171,7 @@
             margin-bottom: 10px;
             width: 100%;
             padding: 0 10px;
+            text-align: center;
         }
         
         .footer-links a {
@@ -230,7 +237,7 @@
             }
         }
 
-                /* Add this to your CSS */
+        /* Add this to your CSS */
         .builder a {
             color: var(--text-color);
             text-decoration: underline;
@@ -238,6 +245,13 @@
 
         .builder a:hover {
             color: var(--link-hover-color);
+        }
+        
+        .timestamp-info {
+            text-align: center;
+            margin: 10px auto;
+            width: 100%;
+            font-family: monospace;
         }
     </style>
     <script data-goatcounter="https://criclite.goatcounter.com/count"
@@ -290,8 +304,7 @@
         </div>
         {% endif %}
 
-        <pre class="divider">
-=========================================</pre>
+        <pre class="divider">=========================================</pre>
         <br>
         <div class="terminal-section">
             <div class="terminal-header">Access via Terminal</div>
@@ -299,10 +312,11 @@
             <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
         </div>    
 
-        <pre>
-        Last updated: {{ last_updated }} ({{ time_ago }})
-        {% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.{% endif %}
-        Page auto-refreshes every 2 minutes.</pre>
+        <div class="timestamp-info">
+            <p>Last updated: {{ last_updated }} ({{ time_ago }})<br>
+            {% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.<br>{% endif %}
+            Page auto-refreshes every 2 minutes.</p>
+        </div>
 
         <div class="footer-container">
             <div class="footer-links">
