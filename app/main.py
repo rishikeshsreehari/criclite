@@ -21,6 +21,9 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 # Ensure data directories exist
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
+NEXT_UPDATE_TIMESTAMP = {"time": time.time() + 120}
+
+
 # Set up log file with rotation to prevent it from growing too large
 LOG_FILE = DATA_FOLDER / "app_log.txt"
 app_logger = logging.getLogger("app")
@@ -305,10 +308,9 @@ async def root(request: Request):
     
     # Calculate next update time
     next_update_mins = 0
-    if next_update_time:
-        now = time.time()
-        if next_update_time > now:
-            next_update_mins = round((next_update_time - now) / 60)
+    now = time.time()
+    if NEXT_UPDATE_TIMESTAMP["time"] > now:
+        next_update_mins = max(1, round((NEXT_UPDATE_TIMESTAMP["time"] - now) / 60))
     
     response = templates.TemplateResponse("index.html", {
         "request": request,
@@ -488,34 +490,45 @@ async def about(request: Request):
 
 async def update_cricket_data():
     """Background task to update cricket data with adaptive interval"""
-    global next_update_time
-    
-    # Change update interval from 180 to 120 seconds (2 minutes)
-    current_update_interval = 120  # 2 minutes
+    MIN_INTERVAL = 120  # Minimum 2 minutes (in seconds)
     
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        start_time = time.time()
+        
         try:
-            # Fetch the latest data
-            app_logger.info(f"[{current_time}] Fetching cricket data...")
-            cricket_data = fetch_live_scores(IGNORED_TOURNAMENTS)
+            app_logger.info(f"[{current_time}] Checking for cricket data updates...")
+            cricket_data = fetch_live_scores(IGNORED_TOURNAMENTS, logger=app_logger)
             
-            # Calculate next update time (every 2 minutes)
-            next_update_time = time.time() + current_update_interval
+            # Get info from RSS_FETCH_STRATEGY
+            from app.data_fetcher import RSS_FETCH_STRATEGY
             
-            # Log information about the update
+            wait_index = min(RSS_FETCH_STRATEGY['unchanged_count'], 
+                            len(RSS_FETCH_STRATEGY['wait_times']) - 1)
+            wait_minutes = RSS_FETCH_STRATEGY['wait_times'][wait_index]
+            next_check_seconds = max(MIN_INTERVAL, wait_minutes * 60)
+            
+            processing_time = time.time() - start_time
+            actual_wait_seconds = max(MIN_INTERVAL, next_check_seconds - processing_time)
+            
+            # Update the timestamp dictionary
+            NEXT_UPDATE_TIMESTAMP["time"] = time.time() + actual_wait_seconds
+            
+            # Log info about the update
             live_matches = sum(1 for m in cricket_data['matches'] if m['is_live'])
             upcoming_matches = sum(1 for m in cricket_data['matches'] if m['match_status'] == 'upcoming')
-            app_logger.info(f"[{current_time}] Data updated. Found {live_matches} live matches, {upcoming_matches} upcoming matches. " +
-                  f"Next update in {current_update_interval//60} minutes.")
+            
+            app_logger.info(f"[{current_time}] Data updated. Found {live_matches} live matches, "
+                          f"{upcoming_matches} upcoming matches. Next check in {actual_wait_seconds/60:.1f} minutes.")
             
         except Exception as e:
             app_logger.error(f"[{current_time}] Error updating cricket data: {e}")
-            next_update_time = time.time() + current_update_interval  # Reset to default on error
+            actual_wait_seconds = MIN_INTERVAL
+            NEXT_UPDATE_TIMESTAMP["time"] = time.time() + MIN_INTERVAL
         
         # Wait before updating again
-        await asyncio.sleep(current_update_interval)
-           
+        await asyncio.sleep(actual_wait_seconds)
+
 @app.on_event("startup")
 async def startup_event():
     """Run on application startup"""

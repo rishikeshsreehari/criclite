@@ -74,41 +74,26 @@ def fetch_rss_feed(logger=None):
     # Determine current wait time
     unchanged_count = RSS_FETCH_STRATEGY['unchanged_count']
     wait_times = RSS_FETCH_STRATEGY['wait_times']
+    
+    # Get current wait time, cap at last value
     current_wait_time = wait_times[min(unchanged_count, len(wait_times) - 1)] * 60  # convert to seconds
     
+    # Check if enough time has passed since last check
+    time_since_last_check = current_time - RSS_FETCH_STRATEGY['last_checked']
+    
+    if time_since_last_check < current_wait_time:
+        if logger:
+            logger.info(f"Skipping RSS fetch. Wait time not elapsed. Next fetch in {current_wait_time - time_since_last_check:.2f} seconds.")
+        return None
+    
     try:
-        # Check if enough time has passed since last check
-        if (current_time - RSS_FETCH_STRATEGY['last_checked']) < current_wait_time:
-            if logger:
-                logger.info(f"Skipping RSS fetch. Wait time not elapsed. Next fetch in {current_wait_time} seconds.")
-            return None
-        
         response = requests.get(rss_url, timeout=10)
         if response.status_code != 200:
             if logger:
                 logger.error(f"Failed to fetch RSS feed: {response.status_code}")
             return None
         
-        # Create a hash of the entire RSS content
-        current_rss_hash = hashlib.md5(response.content).hexdigest()
-        
-        # Check if RSS content has changed
-        if current_rss_hash == RSS_FETCH_STRATEGY['last_hash']:
-            # Content is the same, increment unchanged count
-            RSS_FETCH_STRATEGY['unchanged_count'] += 1
-            RSS_FETCH_STRATEGY['last_checked'] = current_time
-            
-            if logger:
-                logger.info(f"No RSS changes. Unchanged count: {RSS_FETCH_STRATEGY['unchanged_count']}, "
-                             f"Next fetch in {current_wait_time} seconds.")
-            return None
-        
-        # RSS content has changed
-        RSS_FETCH_STRATEGY['last_hash'] = current_rss_hash
-        RSS_FETCH_STRATEGY['last_checked'] = current_time
-        RSS_FETCH_STRATEGY['unchanged_count'] = 0  # Reset unchanged count
-        
-        # Parse XML
+        # Parse XML first so we have the matches regardless of hash comparison result
         root = ET.fromstring(response.content)
         
         matches = []
@@ -127,7 +112,47 @@ def fetch_rss_feed(logger=None):
                     'link': guid,
                     'last_checked': time.time()
                 })
+        
+        if not matches:
+            if logger:
+                logger.warning("No matches found in RSS feed")
+            return None
             
+        # Create a hash of the entire RSS content
+        current_rss_hash = hashlib.md5(response.content).hexdigest()
+        
+        # First check if we have a previous hash
+        if RSS_FETCH_STRATEGY['last_hash'] is None:
+            RSS_FETCH_STRATEGY['last_hash'] = current_rss_hash
+            RSS_FETCH_STRATEGY['last_checked'] = current_time
+            
+        # Add this before the hash comparison
+        if logger:
+            logger.info(f"Previous hash: {RSS_FETCH_STRATEGY['last_hash']}")
+            logger.info(f"Current hash: {current_rss_hash}")
+            logger.info(f"Current unchanged count: {RSS_FETCH_STRATEGY['unchanged_count']}")
+        
+        # Check if RSS content has changed
+        if current_rss_hash == RSS_FETCH_STRATEGY['last_hash']:
+            # Increment unchanged counter
+            RSS_FETCH_STRATEGY['unchanged_count'] += 1
+            RSS_FETCH_STRATEGY['last_checked'] = current_time
+            
+            if logger:
+                wait_index = min(RSS_FETCH_STRATEGY['unchanged_count'], len(wait_times) - 1)
+                next_wait = wait_times[wait_index]
+                logger.info(f"No RSS changes. Next fetch in {next_wait} minutes.")
+            
+            # Still return the matches even when content hasn't changed
+            if logger:
+                logger.info(f"Returning {len(matches)} matches from unchanged RSS feed")
+            return matches
+        
+        # If content changed, reset unchanged counter
+        RSS_FETCH_STRATEGY['last_hash'] = current_rss_hash
+        RSS_FETCH_STRATEGY['last_checked'] = current_time
+        RSS_FETCH_STRATEGY['unchanged_count'] = 0
+        
         if logger:
             logger.info(f"Successfully fetched RSS feed with {len(matches)} matches")
         return matches
@@ -283,6 +308,68 @@ def create_fallback_match_data(match_info, match_id):
     
     return processed_data
 
+def cleanup_match_files(current_match_ids, ignored_tournaments=None, logger=None):
+    """
+    Delete match JSON files that:
+    1. Are not present in the current RSS feed
+    2. Are for matches in the ignored tournaments list
+    """
+    if ignored_tournaments is None:
+        ignored_tournaments = []
+    
+    if logger:
+        logger.info(f"Starting cleanup with {len(current_match_ids)} current match IDs")
+        logger.info(f"Ignored tournaments: {ignored_tournaments}")
+    
+    # Get all match JSON files in the data folder
+    match_files = [f for f in os.listdir(DATA_FOLDER) if f.endswith('.json') and f != 'live_data.json' 
+                  and f != 'previous_rss_data.json' and f != 'failed_fetches.json']
+    
+    if logger:
+        logger.info(f"Found {len(match_files)} match files to examine")
+    
+    # Collect files to delete rather than deleting immediately
+    files_to_delete = []
+    
+    for file_name in match_files:
+        try:
+            # Extract match ID from filename
+            match_id = file_name.split('.')[0]
+            
+            # Skip non-numeric match IDs
+            if not match_id.isdigit():
+                continue
+            
+            file_path = os.path.join(DATA_FOLDER, file_name)
+            
+            # Condition 1: File isn't in current RSS feed
+            if match_id not in current_match_ids:
+                if logger:
+                    logger.info(f"Match {match_id} not in current RSS feed, marking for deletion")
+                files_to_delete.append((file_path, f"not in RSS feed"))
+                continue
+        
+        except Exception as e:
+            if logger:
+                logger.error(f"Error processing file {file_name} for cleanup: {str(e)}")
+    
+    # Now delete all marked files after processing
+    deleted_count = 0
+    for file_path, reason in files_to_delete:
+        try:
+            # Add a small delay to ensure file is released
+            time.sleep(0.1)
+            os.remove(file_path)
+            deleted_count += 1
+            if logger:
+                logger.info(f"Successfully deleted file {os.path.basename(file_path)} - {reason}")
+        except Exception as e:
+            if logger:
+                logger.error(f"Failed to delete file {os.path.basename(file_path)}: {str(e)}")
+    
+    if logger:
+        logger.info(f"Cleanup summary: Examined {len(match_files)} files, deleted {deleted_count} match files")
+
 def update_matches(ignore_list=None, logger=None):
     """Main function to update all match data with optimization to only fetch JSON when RSS content changes"""
     # Define the file to store previous RSS data
@@ -402,14 +489,7 @@ def update_matches(ignore_list=None, logger=None):
                 
                 processed_data = process_match_data(match_data, match_id)
                 if processed_data:
-                    # Check if tournament should be ignored
-                    tournament = processed_data.get('tournament', '')
-                    if tournament in ignore_list:
-                        if logger:
-                            logger.info(f"Ignoring match in tournament: {tournament}")
-                        continue
-                    
-                    # Save the processed data
+                    # Save the processed data regardless of tournament
                     with open(match_file, 'w', encoding='utf-8') as f:
                         json.dump(processed_data, f, ensure_ascii=False, indent=2)
                     
@@ -425,7 +505,7 @@ def update_matches(ignore_list=None, logger=None):
                     logger.warning(f"Using fallback data for match {match_id}")
                 fallback_data = create_fallback_match_data(match, match_id)
                 
-                # No easy way to check tournament in fallback data, so include all
+                # Save fallback data
                 with open(match_file, 'w', encoding='utf-8') as f:
                     json.dump(fallback_data, f, ensure_ascii=False, indent=2)
                 
@@ -437,14 +517,22 @@ def update_matches(ignore_list=None, logger=None):
         m.get('priority', 10)
     ))
     
+    # Filter matches before saving to summary file
+    filtered_matches = [m for m in all_matches if m.get('tournament', '') not in ignore_list]
+    if logger and len(filtered_matches) < len(all_matches):
+        logger.info(f"Filtered out {len(all_matches) - len(filtered_matches)} matches from ignored tournaments")
+    
     # Save the summary file for the main app
     summary_file = DATA_FOLDER / "live_data.json"
     with open(summary_file, 'w', encoding='utf-8') as f:
         json.dump({
             'last_updated': time.time(),
             'last_updated_string': time.strftime("%Y-%m-%d %H:%M:%S GMT", time.gmtime()),
-            'matches': all_matches
+            'matches': filtered_matches  # Use filtered matches here
         }, f, ensure_ascii=False, indent=2)
+    
+    # Clean up files no longer in RSS feed
+    cleanup_match_files(current_match_ids, logger=logger)
     
     # Save current RSS data for next comparison
     try:
@@ -467,7 +555,7 @@ def update_matches(ignore_list=None, logger=None):
             logger.error(f"Error saving failed fetches list: {str(e)}")
     
     if logger:
-        logger.info(f"Update summary: {updated_match_count} updated, {len(all_matches)} total matches")
+        logger.info(f"Update summary: {updated_match_count} updated, {len(filtered_matches)} total matches after filtering")
     return True
 
 def process_match_data(match_data, match_id, logger=None):
@@ -601,64 +689,64 @@ def process_match_data(match_data, match_id, logger=None):
         return None
 
 def fetch_live_scores(ignore_list=None, logger=None):
-    """
-    Main function called by the FastAPI app to fetch cricket scores
-    
-    Args:
-        ignore_list: Optional list of tournament names to ignore
-        logger: Optional logger to use for logging
-    """
-    current_time = time.time()
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S GMT")
-    
-    if logger:
-        logger.info("Starting cricket data update")
-    
-    try:
-        # Use our new update method
-        update_success = update_matches(ignore_list, logger)
-        
-        if update_success:
-            # Load the updated data
-            with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                cricket_data = json.load(f)
-                if logger:
-                    logger.info(f"Successfully loaded data with {len(cricket_data['matches'])} matches")
-                return cricket_data
-    except Exception as e:
-        if logger:
-            logger.error(f"Error updating cricket data: {str(e)}")
-    
-    # If we get here, the update failed or an error occurred
-    # Try to return existing data if available
-    if os.path.exists(DATA_FILE):
-        try:
-            if logger:
-                logger.info(f"Loading existing data from {DATA_FILE}")
-            with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                existing_data = json.load(f)
-                existing_data['last_checked'] = timestamp
-                if logger:
-                    logger.info(f"Loaded existing data with {len(existing_data['matches'])} matches")
-                return existing_data
-        except Exception as e:
-            if logger:
-                logger.error(f"Failed to load existing data: {str(e)}")
-    
-    if logger:
-        logger.warning("No data available, returning empty dataset")
-    return {
-        'last_updated': "Data currently unavailable",
-        'last_updated_string': timestamp,
-        'last_updated_timestamp': current_time,
-        'matches': []
-    }
+   """
+   Main function called by the FastAPI app to fetch cricket scores
+   
+   Args:
+       ignore_list: Optional list of tournament names to ignore
+       logger: Optional logger to use for logging
+   """
+   current_time = time.time()
+   timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S GMT")
+   
+   if logger:
+       logger.info("Starting cricket data update")
+   
+   try:
+       # Use our new update method
+       update_success = update_matches(ignore_list, logger)
+       
+       if update_success:
+           # Load the updated data
+           with open(DATA_FILE, 'r', encoding='utf-8') as f:
+               cricket_data = json.load(f)
+               if logger:
+                   logger.info(f"Successfully loaded data with {len(cricket_data['matches'])} matches")
+               return cricket_data
+   except Exception as e:
+       if logger:
+           logger.error(f"Error updating cricket data: {str(e)}")
+   
+   # If we get here, the update failed or an error occurred
+   # Try to return existing data if available
+   if os.path.exists(DATA_FILE):
+       try:
+           if logger:
+               logger.info(f"Loading existing data from {DATA_FILE}")
+           with open(DATA_FILE, 'r', encoding='utf-8') as f:
+               existing_data = json.load(f)
+               existing_data['last_checked'] = timestamp
+               if logger:
+                   logger.info(f"Loaded existing data with {len(existing_data['matches'])} matches")
+               return existing_data
+       except Exception as e:
+           if logger:
+               logger.error(f"Failed to load existing data: {str(e)}")
+   
+   if logger:
+       logger.warning("No data available, returning empty dataset")
+   return {
+       'last_updated': "Data currently unavailable",
+       'last_updated_string': timestamp,
+       'last_updated_timestamp': current_time,
+       'matches': []
+   }
 
 # If run directly, update the data
 if __name__ == "__main__":
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    logger.info("Manually updating cricket data")
-    data = fetch_live_scores(logger=logger)
-    logger.info(f"Found {len(data['matches'])} matches.")
+   import logging
+   logging.basicConfig(level=logging.INFO)
+   logger = logging.getLogger(__name__)
+   logger.info("Manually updating cricket data")
+   data = fetch_live_scores(logger=logger)
+   logger.info(f"Found {len(data['matches'])} matches.")

@@ -174,7 +174,17 @@
             padding: 2px 5px;
             border-radius: 3px;
         }
-        
+        .version-tag {
+            font-size: 0.7em;         /* Slightly larger, more readable */
+            color: rgba(128, 128, 128, 0.7);  /* Faded gray color */
+            font-weight: 300;          /* Lighter font weight */
+            margin-left: 10px;         /* More horizontal spacing */
+            margin-top: 5px;           /* Add some vertical spacing */
+            vertical-align: super;     /* Slightly raised positioning */
+            opacity: 0.6;              /* Additional opacity reduction */
+            padding: 2px 4px;          /* Add some padding */
+            display: inline-block;     /* Allows padding to take effect */
+        }
     </style>
     <script data-goatcounter="https://criclite.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -228,11 +238,19 @@
 
         <pre class="divider">
 =========================================</pre>
-<br>
+        <br>
+        <div class="terminal-section">
+            <div class="terminal-header">Access via Terminal</div>
+            <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
+            <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
+        </div>    
+
         <pre>
-Last updated: {{ last_updated }} ({{ time_ago }})
-{% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.{% endif %}
-Page auto-refreshes every 2 minutes.</pre>
+        Last updated: {{ last_updated }} ({{ time_ago }})
+        {% if next_update_mins > 0 %}Next update in approximately {{ next_update_mins }} minutes.{% endif %}
+        Page auto-refreshes every 2 minutes.</pre>
+
+        
 
         <div class="footer-links">
             <a href="/about">About</a>
@@ -244,15 +262,12 @@ Page auto-refreshes every 2 minutes.</pre>
         </div>
 
         
-        <div class="terminal-section">
-            <div class="terminal-header">Access via Terminal</div>
-            <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
-            <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
-        </div>
+        
 
         <div class="builder">
             Built by <a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank" style="text-decoration: underline; color: var(--link-color);">Rishikesh</a>
         </div>
+        <div class="version-tag">v0.1.0</div>
     </div>
 </body>
 </html>
