@@ -219,15 +219,101 @@ def format_match_for_display(match, use_symbols=True):
     # Add separator before teams/scores
     box_lines.append(score_separator)
     
-    # Add team 1 with score
-    box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
-    if score1:
-        box_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
-    
-    # Add team 2 with score
-    box_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
-    if score2:
-        box_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
+    # Handle different display formats based on match status
+    if match_status == "live":
+        # Determine which team is batting based on toss/status info 
+        # and which has a non-zero score
+        batting_team = None
+        batting_score = None
+        waiting_team = None
+        completed_team = None
+        completed_score = None
+        
+        # Check if second innings has begun by looking for targets/runs needed in status
+        second_innings_begun = any(phrase in status.lower() for phrase in [
+            "need", "require", "target", "to win", "runs to win", "runs from", "chasing"
+        ])
+        
+        if second_innings_begun:
+            # For second innings, determine which team is currently batting
+            # The team with fewer overs is likely batting now
+            overs1 = 0
+            overs2 = 0
+            if "ov" in score1:
+                try:
+                    overs1 = float(score1.split("(")[1].split(" ov")[0])
+                except:
+                    pass
+            if "ov" in score2:
+                try:
+                    overs2 = float(score2.split("(")[1].split(" ov")[0])
+                except:
+                    pass
+            
+            if overs1 <= overs2 and score1.strip() != "0/0 (0.0 ov)":
+                batting_team = team1
+                batting_score = score1
+                completed_team = team2
+                completed_score = score2
+            else:
+                batting_team = team2
+                batting_score = score2
+                completed_team = team1
+                completed_score = score1
+            
+            # Display format: Currently batting team at top
+            box_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
+            box_lines.append(empty_line)
+            box_lines.append(f"| {completed_team}  {completed_score.ljust(INNER_WIDTH - len(completed_team) - 2)} |")
+        else:
+            # First innings
+            if "elected to bat" in status.lower() or "chose to bat" in status.lower():
+                # Team that won the toss is batting first
+                if team1.lower() in status.lower():
+                    batting_team = team1
+                    batting_score = score1
+                    waiting_team = team2
+                else:
+                    batting_team = team2
+                    batting_score = score2
+                    waiting_team = team1
+            else:
+                # If we can't determine from toss, check which score has actual runs
+                score1_has_runs = any(c.isdigit() and c != '0' for c in score1.split('(')[0])
+                score2_has_runs = any(c.isdigit() and c != '0' for c in score2.split('(')[0])
+                
+                if score1_has_runs and not score2_has_runs:
+                    batting_team = team1
+                    batting_score = score1
+                    waiting_team = team2
+                elif score2_has_runs and not score1_has_runs:
+                    batting_team = team2
+                    batting_score = score2
+                    waiting_team = team1
+                else:
+                    # Fallback to original display if can't determine batting team
+                    box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+                    if score1:
+                        box_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
+                    
+                    box_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+                    if score2:
+                        box_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
+            
+            # Use the ESPN-style format for first innings
+            if batting_team and waiting_team:
+                box_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
+                box_lines.append(empty_line)
+                box_lines.append(f"| {waiting_team.ljust(INNER_WIDTH)} |")
+    else:
+        # For non-live matches, use the original display format
+        box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+        if score1:
+            box_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
+        
+        box_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+        if score2:
+            box_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
     
     # Add separator before status
     box_lines.append(score_separator)
