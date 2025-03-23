@@ -56,6 +56,8 @@ IGNORED_TOURNAMENTS = [
     "Men's PM Cup", 
     "National T20 Cup",
     "Plunket Shield",
+    "Hong Kong Women's Premier League",
+    "Hong Kong Premier League T20 Tournament",
     # Add any other tournaments you want to ignore
 ]
 
