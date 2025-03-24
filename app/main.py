@@ -402,13 +402,14 @@ async def root(request: Request):
     time_ago = cricket_data.get('time_ago', "Unknown time ago")
     
     # Simplify cache control - always use 30 seconds for browser cache
-    # to match CloudFront TTL, with 60s s-maxage to match data update frequency
     cache_time = 30
     
     # Group matches by status
     live_matches = []
     completed_matches = []
-    upcoming_matches = []
+    
+    # Store upcoming matches with their timestamps for sorting
+    upcoming_matches_with_time = []
     
     # Current date for filtering
     current_date = datetime.now().date()
@@ -428,15 +429,25 @@ async def root(request: Request):
                         continue
                 except:
                     pass  # If date parsing fails, include the match
-        
-        formatted_match = format_match_for_display(match)
-        
-        if match_status == "live":
-            live_matches.append(formatted_match)
-        elif match_status == "completed":
+            
+            formatted_match = format_match_for_display(match)
             completed_matches.append(formatted_match)
+            
+        elif match_status == "live":
+            formatted_match = format_match_for_display(match)
+            live_matches.append(formatted_match)
+            
         else:  # upcoming or unknown
-            upcoming_matches.append(formatted_match)
+            # Format the match but store it with its start time for sorting
+            formatted_match = format_match_for_display(match)
+            match_time = match.get('match_time', float('inf'))  # Default to far future if no timestamp
+            upcoming_matches_with_time.append((match_time, formatted_match))
+    
+    # Sort upcoming matches by match_time (earliest first)
+    upcoming_matches_with_time.sort(key=lambda x: x[0])
+    
+    # Extract just the formatted matches in sorted order
+    upcoming_matches = [match_tuple[1] for match_tuple in upcoming_matches_with_time]
     
     # Calculate next update time with seconds
     next_update_text = ""
@@ -462,8 +473,6 @@ async def root(request: Request):
     })
     
     # Set appropriate cache control for CDN
-    # max-age=30 for browsers (matches CloudFront TTL)
-    # s-maxage=60 for CDN (matches your data update frequency)
     response.headers["Cache-Control"] = f"public, max-age={cache_time}, s-maxage=60"
     
     # Set Vary header to ensure proper caching with cookies
