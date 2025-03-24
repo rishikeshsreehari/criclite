@@ -401,9 +401,9 @@ async def root(request: Request):
     # Use the pre-calculated time_ago value
     time_ago = cricket_data.get('time_ago', "Unknown time ago")
     
-    # Add cache control headers based on data freshness
-    seconds_ago = int(time.time() - cricket_data.get('last_updated', time.time()))
-    cache_time = 60 if seconds_ago < 120 else 30
+    # Simplify cache control - always use 30 seconds for browser cache
+    # to match CloudFront TTL, with 60s s-maxage to match data update frequency
+    cache_time = 30
     
     # Group matches by status
     live_matches = []
@@ -462,7 +462,9 @@ async def root(request: Request):
     })
     
     # Set appropriate cache control for CDN
-    response.headers["Cache-Control"] = f"public, max-age={cache_time}, s-maxage=120"
+    # max-age=30 for browsers (matches CloudFront TTL)
+    # s-maxage=60 for CDN (matches your data update frequency)
+    response.headers["Cache-Control"] = f"public, max-age={cache_time}, s-maxage=60"
     
     # Set Vary header to ensure proper caching with cookies
     response.headers["Vary"] = "Cookie"
@@ -612,7 +614,7 @@ async def plain_text(request: Request):
     response = PlainTextResponse("\n".join(output))
     
     # Set appropriate cache control for CDN
-    response.headers["Cache-Control"] = "public, max-age=60, s-maxage=120"
+    response.headers["Cache-Control"] = "public, max-age=30, s-maxage=60"
     
     # Set Vary header to ensure proper caching with cookies
     response.headers["Vary"] = "Cookie"
