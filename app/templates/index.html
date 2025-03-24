@@ -19,8 +19,10 @@
     <pre class="section-title">[LIVE]
 =============</pre>
     <div class="match-row">
-        {% for match in live_matches %}
-        <div class="match-col">{{ match | safe }}</div>
+        {% for match_id, match in live_matches %}
+        <div class="match-col">
+            <a href="/{{ match_id }}" class="match-link">{{ match | safe }}</a>
+        </div>
         {% endfor %}
     </div>
 </div>
@@ -31,8 +33,10 @@
     <pre class="section-title">[UPCOMING]
 =============</pre>
     <div class="match-row">
-        {% for match in upcoming_matches %}
-        <div class="match-col">{{ match | safe }}</div>
+        {% for match_id, match in upcoming_matches %}
+        <div class="match-col">
+            <a href="/{{ match_id }}" class="match-link">{{ match | safe }}</a>
+        </div>
         {% endfor %}
     </div>
 </div>
@@ -43,8 +47,10 @@
     <pre class="section-title">[COMPLETED]
 =============</pre>
     <div class="match-row">
-        {% for match in completed_matches %}
-        <div class="match-col">{{ match | safe }}</div>
+        {% for match_id, match in completed_matches %}
+        <div class="match-col">
+            <a href="/{{ match_id }}" class="match-link">{{ match | safe }}</a>
+        </div>
         {% endfor %}
     </div>
 </div>
@@ -63,4 +69,27 @@
     {% if next_update_text %}Next update in approximately {{ next_update_text }}.<br>{% endif %}
     Page auto-refreshes every 30s.</p>
 </div>
+
+<style>
+    .match-col {
+        font-family: monospace;
+        white-space: pre;
+        line-height: 1.2;
+        margin: 5px 0;
+        overflow: hidden;
+        font-size: 14px;
+        width: 41ch;
+        text-align: left;
+    }
+    
+    .match-link {
+        color: inherit;
+        text-decoration: none;
+        display: block;
+    }
+    
+    .match-link:hover {
+        color: var(--link-hover-color);
+    }
+</style>
 {% endblock %}

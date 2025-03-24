@@ -85,7 +85,7 @@ def load_cricket_data():
             pass
     return default_cricket_data
 
-def format_match_for_display(match, use_symbols=True):
+def format_match_for_display(match, use_symbols=True, include_link=True):
     """Format a match into a consistent ASCII box with fixed borders"""
     
     # Get match data
@@ -371,6 +371,16 @@ def format_match_for_display(match, use_symbols=True):
     if len(box_lines) < 12:  # Assuming we want about 13 lines total with borders
         box_lines.append(empty_line)
     
+    # Add a row for the view scorecard link if requested
+    if include_link:
+        # Add a separator before the link
+        box_lines.append(score_separator)
+        
+        # Add the link row with centered text
+        link_text = "View Scorecard"
+        padding = (INNER_WIDTH - len(link_text)) // 2
+        box_lines.append(f"| {' ' * padding}{link_text}{' ' * (INNER_WIDTH - padding - len(link_text))} |")
+    
     # Add bottom border
     box_lines.append(bottom_border)
     
@@ -378,6 +388,7 @@ def format_match_for_display(match, use_symbols=True):
     box_text = "\n".join(box_lines)
     
     return box_text
+
 
 def format_scorecard_as_html(scorecard_data, match_info, show_second_innings_first=True):
     """Format scorecard data with improved ASCII layout"""
@@ -754,16 +765,16 @@ async def root(request: Request):
                 except:
                     pass  # If date parsing fails, include the match
             
-            formatted_match = format_match_for_display(match)
+            formatted_match = format_match_for_display(match, include_link=True)
             completed_matches.append((match_id, formatted_match))
             
         elif match_status == "live":
-            formatted_match = format_match_for_display(match)
+            formatted_match = format_match_for_display(match, include_link=True)
             live_matches.append((match_id, formatted_match))
             
         else:  # upcoming or unknown
             # Format the match but store it with its start time for sorting
-            formatted_match = format_match_for_display(match)
+            formatted_match = format_match_for_display(match, include_link=True)
             match_time = match.get('match_time', float('inf'))  # Default to far future if no timestamp
             upcoming_matches_with_time.append((match_time, match_id, formatted_match))
     
@@ -803,6 +814,7 @@ async def root(request: Request):
     response.headers["Vary"] = "Cookie"
     
     return response
+
 
 @app.get("/toggle-theme", response_class=HTMLResponse)
 async def toggle_theme(request: Request):
@@ -893,7 +905,7 @@ async def plain_text(request: Request):
                 except:
                     pass  # If date parsing fails, include the match
         
-        formatted_match = format_match_for_display(match, use_symbols=False)
+        formatted_match = format_match_for_display(match, use_symbols=False, include_link=False)
         
         if match_status == "live":
             live_matches.append(formatted_match)
@@ -937,8 +949,6 @@ async def plain_text(request: Request):
     
     output.append("=================================================================")
     output.append(f"Last updated: {cricket_data.get('last_updated_string', 'Unknown')} ({time_ago})")
-    
-   
     
     output.append("Refresh page to update scores.")
     
