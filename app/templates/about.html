@@ -1,47 +1,36 @@
 {% extends "base.html" %}
-
 {% block title %}About CricLite - Plain Text Cricket Scores{% endblock %}
-
 {% block content %}
 <a href="/" style="text-decoration: none; color: inherit;">
     <pre class="site-title">CRICLITE</pre>
 </a>
 <pre class="site-subtitle">Plain text live cricket scores.</pre>
-
 <div class="theme-toggle">
     <a href="/toggle-theme" style="text-decoration: none"> {{ "[Light] " if theme == "dark" else "[Dark]" }}</a>
 </div>
-
 <pre class="divider">=========================================</pre>
-
 <div class="about-content">
     <h1>About CricLite</h1>
-
     <p>CricLite is a live cricket score website built out of frustration with the slow loading times and 
     complicated structure of modern cricket websites. In a world where cricket connects 2.5 billion fans, 
     why should checking scores be such a heavy experience?</p>
-
     <p>By design, CricLite is minimal and uses only plain ASCII for displaying information. The entire site is 
     approximately 10KB with no client-side JavaScript, loading almost instantly in any environment.</p>
-
     <h2>Terminal Access</h2>
     <p>Get live scores directly in your terminal:</p>
     <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
     <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
-
     <h2>Inspiration</h2>
-    <p>CricLite was inspired by the design of plaintextsports.com which unfortunately didn't cover cricket
+    <p>CricLite was inspired by the design of <a href="https://plaintextsports.com" target="_blank">plaintextsports.com</a> which unfortunately didn't cover cricket
     and wasn't open-source. Given the massive global cricket audience, creating a similar experience 
     for cricket fans seemed like an interesting experiment.</p>
-
     <h2>Technical Details</h2>
     <p>The site is built with FastAPI and hosted on an EC2 instance in AWS Mumbai servers. Content is 
-    cached via CloudFront CDN with a TTL of 2 minutes to ensure the EC2 instance doesn't face excessive
-    load during traffic spikes. All data is sourced from ESPN with no persistence on our end.</p>
+    cached via CloudFront CDN with a TTL of 1 minute to ensure the EC2 instance doesn't face excessive
+    load during traffic spikes. All data is sourced from CricAPI with scores updating every minute.</p>
     
     <p>No client-side JavaScript is used, including for the light/dark theme toggle. I do not collect any user data 
     except some analytics via GoatCounter, which is GDPR-friendly. The theme state is stored in your browser via cookies.</p>
-
     <h2>Contributing</h2>
     <p>CricLite is open source software. You can view the code and contribute on 
     <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">GitHub</a>.</p>
@@ -54,21 +43,16 @@
         <li>Weather forecasts</li>
         <li>Win predictors</li>
     </ul>
-
     <h2>Support</h2>
-    <p>Currently, CricLite is hosted on a free AWS instance, but any support for development work is 
-    appreciated. You can support the project on <a href="https://ko-fi.com/rishikeshs" target="_blank">Ko-fi</a>.</p>
+<p>Currently, CricLite costs $5.99 per month for API charges and is limited to updates every 1 minute. 
+With your support, I can upgrade to a better API plan that would allow for 10-second polling and more 
+real-time score updates. You can support the project on <a href="https://ko-fi.com/rishikeshs" target="_blank">Ko-fi</a>.</p>
 
     <h2>Contact</h2>
     <p>For queries or complaints, please email me at <a href="mailto:hello@rishikeshs.com">hello@rishikeshs.com</a>.</p>
-
-    <h2>Disclaimer</h2>
-    <p>CricLite is not affiliated with ESPN or any cricket organization. Please use this data at your 
-    own risk and do not reproduce it for commercial interests.</p>
-
+    
     <a href="/" class="back-link">← Back to scores</a>
 </div>
-
 <style>
     .about-content {
         max-width: 800px;
@@ -76,32 +60,26 @@
         text-align: left;
         line-height: 1.6;
     }
-
     .about-content h1 {
         font-size: 1.8em;
         margin-top: 1em;
     }
-
     .about-content h2 {
         font-size: 1.4em;
         margin-top: 1.5em;
     }
-
     .about-content p, .about-content li {
         margin-bottom: 1em;
     }
-
     .about-content ul {
         padding-left: 2em;
     }
-
     .back-link {
         display: inline-block;
         margin: 2em 0;
         color: inherit;
         text-decoration: underline;
     }
-
     .back-link:hover {
         text-decoration: none;
     }

@@ -2,21 +2,41 @@
 import requests
 import json
 import time
+import re
 from datetime import datetime
 from pathlib import Path
 import os
 import logging
+from dotenv import load_dotenv
 
 # Constants
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FOLDER = BASE_DIR / "data"
 DATA_FILE = DATA_FOLDER / "live_data.json"
+TOURNAMENT_MAPPING_FILE = DATA_FOLDER / "tournament_mapping.json"
 
-# API configuration
-API_KEY = "fa463534-a8d3-491f-83b7-ee36bc0c9602"
-CURRENT_MATCHES_URL = f"https://api.cricapi.com/v1/currentMatches?apikey={API_KEY}&offset=0"
+# Ensure data directory exists
+os.makedirs(DATA_FOLDER, exist_ok=True)
 
-# Define priority categories for tournaments (similar to your existing structure)
+# API configuration functions
+def get_api_key():
+    """Get fresh API key from environment variables"""
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    load_dotenv(dotenv_path=env_path, override=True)
+    api_key = os.getenv("API_KEY")
+    if not api_key:
+        raise ValueError("API_KEY not found in environment variables")
+    return api_key
+
+def get_api_urls():
+    """Get API URLs with fresh API key and timestamp to prevent caching"""
+    api_key = get_api_key()
+    timestamp = int(time.time())
+    current_matches_url = f"https://api.cricapi.com/v1/currentMatches?apikey={api_key}&offset=0&ts={timestamp}"
+    cricscore_url = f"https://api.cricapi.com/v1/cricScore?apikey={api_key}&ts={timestamp}"
+    return current_matches_url, cricscore_url
+
+# Define priority categories for tournaments
 PRIORITY_CATEGORIES = {
     "ICC World Cup": 1,
     "ICC T20 World Cup": 1,
@@ -40,9 +60,7 @@ TOP_TEAMS = [
     'pakistan', 'bangladesh', 'sri lanka', 'west indies', 'afghanistan'
 ]
 
-
 # Tournaments to ignore
-# Expanded ignore list
 IGNORED_TOURNAMENTS = [
     "Dhaka Premier Division Cricket League",
     "National Super League 4-Day Tournament",
@@ -90,86 +108,27 @@ def get_tournament_priority(match_name, match_type=None, teams=None):
     # Default priority
     return PRIORITY_CATEGORIES.get('default', 10)
 
-def fetch_current_matches(logger=None):
-    """Fetch current matches from CricAPI"""
+
+def load_tournament_mapping():
+    """Load tournament mapping from file"""
+    if os.path.exists(TOURNAMENT_MAPPING_FILE):
+        try:
+            with open(TOURNAMENT_MAPPING_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
+
+
+def save_tournament_mapping(mapping):
+    """Save tournament mapping to file"""
     try:
-        if logger:
-            logger.info(f"Fetching current matches from CricAPI")
-        
-        response = requests.get(CURRENT_MATCHES_URL, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Check if the API request was successful
-            if data.get('status') == 'success':
-                matches = data.get('data', [])
-                
-                # Log usage info
-                if logger and 'info' in data:
-                    info = data['info']
-                    logger.info(f"API usage: {info.get('hitsUsed', 0)}/{info.get('hitsLimit', 0)} hits today, {info.get('totalRows', 0)} matches found")
-                
-                return matches
-            else:
-                if logger:
-                    logger.error(f"API error: {data.get('status')}")
-        else:
-            if logger:
-                logger.error(f"Failed to fetch matches: {response.status_code}")
-                
-        return None
-    except Exception as e:
-        if logger:
-            logger.error(f"Error fetching matches: {str(e)}")
-        return None
+        with open(TOURNAMENT_MAPPING_FILE, 'w', encoding='utf-8') as f:
+            json.dump(mapping, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
 
-def determine_match_status(match):
-    """Determine match status (live, completed, upcoming) from CricAPI data"""
-    status_text = match.get('status', '').lower()
-    
-    # Check if match has started
-    if not match.get('matchStarted', False):
-        return 'upcoming'
-    
-    # Check if match has ended
-    if match.get('matchEnded', False):
-        return 'completed'
-    
-    # Check for keywords indicating completed matches
-    if any(word in status_text for word in ['won by', 'tied', 'abandoned', 'no result']):
-        return 'completed'
-    
-    # For test matches with stumps or other breaks
-    if 'stumps' in status_text or 'lunch' in status_text or 'tea' in status_text:
-        return 'live'  # Still considered live, though not actively playing
-        
-    # If match has started but not ended, it's live
-    return 'live'
-
-def is_actively_live(match):
-    """Determine if match is actively live (not at stumps/tea/lunch)"""
-    status_text = match.get('status', '').lower()
-    
-    # Match must be in 'live' state but not in a break
-    if determine_match_status(match) == 'live':
-        return not any(word in status_text for word in ['stumps', 'lunch', 'tea', 'drinks', 'rain'])
-    
-    return False
-
-def format_score(score_entry):
-    """Format score data from CricAPI"""
-    if not score_entry:
-        return ""
-        
-    runs = score_entry.get('r', 0)
-    wickets = score_entry.get('w', 0)
-    overs = score_entry.get('o', 0)
-    
-    score = f"{runs}/{wickets}"
-    if overs:
-        score += f" ({overs} ov)"
-        
-    return score
 
 def parse_match_time(date_time_gmt):
     """Convert GMT time string to timestamp"""
@@ -178,6 +137,7 @@ def parse_match_time(date_time_gmt):
         return dt.timestamp()
     except Exception:
         return None
+
 
 def format_match_time(timestamp):
     """Format match time to display countdown"""
@@ -214,6 +174,207 @@ def format_match_time(timestamp):
     
     # Combine countdown with time
     return f"{countdown}\n{gmt_time_str}"
+
+
+def fetch_current_matches(logger=None):
+    """Fetch current matches from CricAPI"""
+    try:
+        if logger:
+            logger.info(f"Fetching current matches from CricAPI")
+        
+        # Get fresh URL with current API key
+        current_matches_url, _ = get_api_urls()
+        
+        # Log masked URL for debugging
+        if logger:
+            masked_url = current_matches_url.replace(get_api_key(), "API_KEY_HIDDEN")
+            logger.info(f"Requesting URL: {masked_url}")
+        
+        response = requests.get(current_matches_url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Add diagnostic information
+            if logger:
+                logger.info(f"API response status: {data.get('status')}")
+            
+            # Check if the API request was successful
+            if data.get('status') == 'success':
+                matches = data.get('data', [])
+                
+                # Log usage info
+                if logger and 'info' in data:
+                    info = data['info']
+                    logger.info(f"API usage: {info.get('hitsUsed', 0)}/{info.get('hitsLimit', 0)} hits today, {info.get('totalRows', 0)} matches found")
+                
+                return matches
+            else:
+                if logger:
+                    # Log full response for debugging
+                    logger.error(f"API error: {data.get('status')}")
+                    if 'info' in data:
+                        logger.error(f"API info: {data['info']}")
+                    logger.error(f"Full response: {data}")
+        else:
+            if logger:
+                logger.error(f"Failed to fetch matches: {response.status_code}")
+                try:
+                    logger.error(f"Response content: {response.text}")
+                except:
+                    pass
+                
+        return None
+    except Exception as e:
+        if logger:
+            logger.error(f"Error fetching matches: {str(e)}")
+        return None
+
+
+def fetch_upcoming_matches(logger=None):
+    """Fetch upcoming matches from CricScore API and update tournament mapping"""
+    try:
+        if logger:
+            logger.info(f"Fetching upcoming matches from CricScore API")
+        
+        # Get fresh URL with current API key
+        _, cricscore_url = get_api_urls()
+        
+        # Log masked URL for debugging
+        if logger:
+            masked_url = cricscore_url.replace(get_api_key(), "API_KEY_HIDDEN")
+            logger.info(f"Requesting URL: {masked_url}")
+        
+        response = requests.get(cricscore_url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Check if the API request was successful
+            if data.get('status') == 'success':
+                matches = data.get('data', [])
+                
+                # Log usage info
+                if logger and 'info' in data:
+                    info = data['info']
+                    logger.info(f"API usage: {info.get('hitsUsed', 0)}/{info.get('hitsLimit', 0)} hits today")
+                
+                # Process upcoming matches (filtering for next 2 days)
+                current_time = time.time()
+                upcoming_matches = []
+                tournament_mapping = load_tournament_mapping()
+                
+                for match in matches:
+                    # Skip if not a fixture (upcoming match)
+                    if match.get('ms') != 'fixture':
+                        continue
+                    
+                    # Parse match time
+                    match_time = None
+                    if match.get('dateTimeGMT'):
+                        try:
+                            dt = datetime.strptime(match.get('dateTimeGMT'), "%Y-%m-%dT%H:%M:%S")
+                            match_time = dt.timestamp()
+                        except Exception as e:
+                            if logger:
+                                logger.error(f"Error parsing time for match {match.get('id')}: {str(e)}")
+                            continue
+                    
+                    # Skip if match time is more than 2 days away
+                    if not match_time or match_time > current_time + 172800:  # 48 hours in seconds
+                        continue
+                    
+                    # Check if match is in ignored tournaments
+                    series_name = match.get('series', '')
+                    if any(ignored in series_name for ignored in IGNORED_TOURNAMENTS):
+                        continue
+                    
+                    # Update tournament mapping
+                    match_id = match.get('id', '')
+                    
+                    if series_name and match_id and series_name not in tournament_mapping:
+                        tournament_mapping[series_name] = {
+                            'series_id': series_name,
+                            'last_updated': time.time(),
+                            'priority': get_tournament_priority(series_name)
+                        }
+                    
+                    # Add to upcoming matches
+                    upcoming_matches.append(match)
+                
+                # Save updated tournament mapping
+                save_tournament_mapping(tournament_mapping)
+                
+                if logger:
+                    logger.info(f"Found {len(upcoming_matches)} upcoming matches in next 2 days")
+                
+                return upcoming_matches
+            else:
+                if logger:
+                    logger.error(f"API error: {data.get('status')}")
+                    logger.error(f"Full response: {data}")
+        else:
+            if logger:
+                logger.error(f"Failed to fetch upcoming matches: {response.status_code}")
+                try:
+                    logger.error(f"Response content: {response.text}")
+                except:
+                    pass
+                
+        return None
+    except Exception as e:
+        if logger:
+            logger.error(f"Error fetching upcoming matches: {str(e)}")
+        return None
+
+
+def determine_match_status(match):
+    """Determine match status (live, completed, upcoming) from CricAPI data"""
+    status_text = match.get('status', '').lower()
+    
+    # Check if match has started
+    if not match.get('matchStarted', False):
+        return 'upcoming'
+    
+    # Check if match has ended
+    if match.get('matchEnded', False):
+        return 'completed'
+    
+    # Check for keywords indicating completed matches
+    if any(word in status_text for word in ['won by', 'tied', 'abandoned', 'no result']):
+        return 'completed'
+    
+    # For test matches with stumps or other breaks
+    if 'stumps' in status_text or 'lunch' in status_text or 'tea' in status_text:
+        return 'live'  # Still considered live, though not actively playing
+        
+    # If match has started but not ended, it's live
+    return 'live'
+
+
+def is_actively_live(match):
+    """Determine if match is actively live (not at stumps/tea/lunch)"""
+    status_text = match.get('status', '').lower()
+    
+    # Match must be in 'live' state but not in a break
+    if determine_match_status(match) == 'live':
+        return not any(word in status_text for word in ['stumps', 'lunch', 'tea', 'drinks', 'rain'])
+    
+    return False
+
+
+def format_score(score_entry):
+    """Format score data from CricAPI"""
+    if not score_entry:
+        return ""
+        
+    runs = score_entry.get('r', 0)
+    wickets = score_entry.get('w', 0)
+    overs = score_entry.get('o', 0)
+    
+    score = f"{runs}/{wickets}"
+    if overs:
+        score += f" ({overs} ov)"
+        
+    return score
 
 
 def process_match(match, logger=None):
@@ -326,83 +487,326 @@ def process_match(match, logger=None):
         return None
 
 
-def fetch_live_scores(ignore_list=None, logger=None):
-    """Main function to fetch cricket scores from CricAPI"""
-    current_time = time.time()
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S GMT")
-    
-    if ignore_list is None:
-        ignore_list = IGNORED_TOURNAMENTS
-    
+def process_criclive_match(match, logger=None):
+    """Process match data from CricScore API which can be used for both live and upcoming matches"""
     try:
-        # Fetch current matches
-        matches = fetch_current_matches(logger)
+        match_id = match.get('id', '')
+        series = match.get('series', '')
+        match_type = match.get('matchType', '').upper()
+        date_time_gmt = match.get('dateTimeGMT', '')
+        status_text = match.get('status', '')
+        match_state = match.get('ms', '')  # 'live', 'result', or 'fixture'
         
-        if not matches:
-            raise Exception("Failed to fetch matches")
+        # Get teams
+        team1 = match.get('t1', '')
+        team2 = match.get('t2', '')
+        team1_score = match.get('t1s', '')
+        team2_score = match.get('t2s', '')
         
-        # Process matches
-        processed_matches = []
-        for match in matches:
-            processed_match = process_match(match, logger)
-            if processed_match:
-                # Only add matches that aren't in the ignore list
-                tournament = processed_match.get('tournament', '')
-                if not any(ignored in tournament for ignored in ignore_list):
-                    processed_matches.append(processed_match)
+        # Clean team names (remove brackets and content within)
+        team1 = re.sub(r'\s*\[.*?\]', '', team1).strip()
+        team2 = re.sub(r'\s*\[.*?\]', '', team2).strip()
         
-        # Sort matches by status and priority
-        processed_matches.sort(key=lambda m: (
-            {"live": 0, "upcoming": 1, "completed": 2}.get(m['match_status'], 3),
-            m.get('priority', 10)
-        ))
+        # Determine match status
+        if match_state == 'fixture':
+            match_status = 'upcoming'
+            is_live = False
+        elif match_state == 'live':
+            match_status = 'live'
+            is_live = True
+        else:  # 'result' or other
+            match_status = 'completed'
+            is_live = False
         
-        # Create the result data
-        result = {
-            'last_updated': current_time,
-            'last_updated_string': timestamp,
-            'matches': processed_matches
+        # Extract match time
+        match_time = None
+        match_date = ""
+        if date_time_gmt:
+            try:
+                dt = datetime.strptime(date_time_gmt, "%Y-%m-%dT%H:%M:%S")
+                match_time = dt.timestamp()
+                match_date = dt.strftime("%Y-%m-%d")
+            except Exception as e:
+                if logger:
+                    logger.error(f"Error parsing time for match {match_id}: {str(e)}")
+        
+        # Create start time info
+        start_time_info = ""
+        if match_status == 'upcoming' and match_time:
+            start_time_info = format_match_time(match_time)
+        
+        # Get tournament priority
+        priority = get_tournament_priority(series, match_type, [team1, team2])
+        
+        # Create processed data
+        processed_data = {
+            'match_id': match_id,
+            'category': f"{match_type}: {series}" if series else match_type,
+            'description': f"Match {match_date}",
+            'tournament': series or match_type,
+            'match_status': match_status,
+            'is_live': is_live,
+            'live_state': "In Progress" if is_live else "",
+            'team1': team1,
+            'team2': team2,
+            'score1': team1_score,
+            'score2': team2_score,
+            'status': status_text,
+            'match_info': f"{team1} vs {team2}",
+            'link': "",
+            'priority': priority,
+            'match_time': match_time,
+            'local_time': None,
+            'timezone': None,
+            'match_date': match_date,
+            'match_type': match_type,
+            'match_number': "",
+            'venue': "",
+            'start_time_info': start_time_info,
+            'last_updated': time.time(),
+            'last_updated_string': time.strftime("%Y-%m-%d %H:%M:%S GMT", time.gmtime()),
+            'source': 'cricscore'
         }
         
-        # Save to file
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
-        
-        if logger:
-            logger.info(f"Successfully updated cricket data with {len(processed_matches)} matches")
-        
-        return result
+        return processed_data
         
     except Exception as e:
         if logger:
-            logger.error(f"Error updating cricket data: {str(e)}")
-        
-        # Try to return existing data if available
-        if os.path.exists(DATA_FILE):
-            try:
-                with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                    existing_data = json.load(f)
-                    existing_data['last_checked'] = timestamp
-                    if logger:
-                        logger.info(f"Loaded existing data with {len(existing_data['matches'])} matches")
-                    return existing_data
-            except Exception as load_error:
-                if logger:
-                    logger.error(f"Failed to load existing data: {str(load_error)}")
-        
-        # Return empty data if nothing else works
-        return {
-            'last_updated': current_time,
-            'last_updated_string': timestamp,
-            'matches': []
-        }
+            logger.error(f"Error processing CricScore match data: {str(e)}")
+        return None
 
-# If run directly, update the data
-# Corrected version:
-if __name__ == "__main__":
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    logger.info("Manually updating cricket data")
-    data = fetch_live_scores(logger=logger)
-    logger.info(f"Found {len(data['matches'])} matches.")
+
+def process_upcoming_match(match, logger=None):
+    """Process upcoming match data from CricScore API"""
+    try:
+        match_id = match.get('id', '')
+        series = match.get('series', '')
+        match_type = match.get('matchType', '').upper()
+        date_time_gmt = match.get('dateTimeGMT', '')
+        
+        # Get teams
+        team1 = match.get('t1', '')
+        team2 = match.get('t2', '')
+        
+        # Clean team names (remove brackets and content within)
+        team1 = re.sub(r'\s*\[.*?\]', '', team1).strip()
+        team2 = re.sub(r'\s*\[.*?\]', '', team2).strip()
+        
+        # Extract match time
+        match_time = None
+        match_date = ""
+        if date_time_gmt:
+            try:
+                dt = datetime.strptime(date_time_gmt, "%Y-%m-%dT%H:%M:%S")
+                match_time = dt.timestamp()
+                match_date = dt.strftime("%Y-%m-%d")
+            except Exception as e:
+                if logger:
+                    logger.error(f"Error parsing time for upcoming match {match_id}: {str(e)}")
+        
+        # Create start time info
+        start_time_info = ""
+        if match_time:
+            start_time_info = format_match_time(match_time)
+        
+        # Get tournament priority
+        priority = get_tournament_priority(series, match_type, [team1, team2])
+        
+        # Create processed data
+        processed_data = {
+            'match_id': match_id,
+            'category': f"{match_type}: {series}" if series else match_type,
+            'description': f"Match scheduled for {match_date}",
+            'tournament': series or match_type,
+            'match_status': 'upcoming',
+            'is_live': False,
+            'live_state': "",
+            'team1': team1,
+            'team2': team2,
+            'score1': "",
+            'score2': "",
+            'status': "Match not started",
+            'match_info': f"{team1} vs {team2}",
+            'link': "",
+            'priority': priority,
+            'match_time': match_time,
+            'local_time': None,
+            'timezone': None,
+            'match_date': match_date,
+            'match_type': match_type,
+            'match_number': "",
+            'venue': "",
+            'start_time_info': start_time_info,
+            'last_updated': time.time(),
+            'last_updated_string': time.strftime("%Y-%m-%d %H:%M:%S GMT", time.gmtime()),
+            'source': 'cricscore'
+        }
+        
+        return processed_data
+        
+    except Exception as e:
+        if logger:
+            logger.error(f"Error processing upcoming match data: {str(e)}")
+        return None
+
+
+def merge_upcoming_with_current(current_matches, upcoming_matches, logger=None):
+    """Merge upcoming matches from CricScore with current matches from CricAPI"""
+    if not upcoming_matches:
+        return current_matches
+    
+    # Create a dictionary of current matches by ID for quick lookup
+    current_match_ids = {match.get('match_id'): True for match in current_matches}
+    
+    added_count = 0
+    # Process and add upcoming matches if they don't already exist
+    for match in upcoming_matches:
+        match_id = match.get('id')
+        if match_id and match_id not in current_match_ids:
+            processed_match = process_upcoming_match(match, logger)
+            if processed_match:
+                current_matches.append(processed_match)
+                added_count += 1
+    
+    if logger:
+        logger.info(f"Added {added_count} new upcoming matches to the current matches list")
+    
+    return current_matches
+
+def fetch_live_scores(ignore_list=None, logger=None):
+   """Main function to fetch cricket scores from CricAPI with fallbacks"""
+   current_time = time.time()
+   timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S GMT")
+   
+   if ignore_list is None:
+       ignore_list = IGNORED_TOURNAMENTS
+   
+   try:
+       # Try primary API first
+       matches = fetch_current_matches(logger)
+       
+       if not matches:
+           # If primary API fails, try the CricScore API as fallback
+           if logger:
+               logger.info("Primary API failed, trying CricScore API as fallback")
+           
+           # Get fresh URL with current API key
+           _, cricscore_url = get_api_urls()
+           
+           cric_score_response = requests.get(cricscore_url, timeout=10)
+           if cric_score_response.status_code == 200:
+               cric_data = cric_score_response.json()
+               if cric_data.get('status') == 'success':
+                   if logger:
+                       logger.info("Successfully fetched data from CricScore API")
+                   
+                   # Use all matches from CricScore (includes live, upcoming, and completed)
+                   all_matches = cric_data.get('data', [])
+                   
+                   # Process the matches
+                   processed_matches = []
+                   for match in all_matches:
+                       # Skip ignored tournaments
+                       series_name = match.get('series', '')
+                       if any(ignored in series_name for ignored in ignore_list):
+                           continue
+                           
+                       processed_match = process_criclive_match(match, logger)
+                       if processed_match:
+                           processed_matches.append(processed_match)
+                   
+                   # Sort matches by status and priority
+                   processed_matches.sort(key=lambda m: (
+                       {"live": 0, "upcoming": 1, "completed": 2}.get(m['match_status'], 3),
+                       m.get('priority', 10)
+                   ))
+                   
+                   # Create the result data
+                   result = {
+                       'last_updated': current_time,
+                       'last_updated_string': timestamp,
+                       'matches': processed_matches
+                   }
+                   
+                   # Save to file
+                   with open(DATA_FILE, 'w', encoding='utf-8') as f:
+                       json.dump(result, f, ensure_ascii=False, indent=2)
+                   
+                   if logger:
+                       logger.info(f"Successfully updated cricket data with {len(processed_matches)} matches (from CricScore)")
+                   
+                   return result
+               else:
+                   if logger:
+                       logger.error(f"CricScore API error: {cric_data.get('status')}")
+           else:
+               if logger:
+                   logger.error(f"Failed to fetch from CricScore: {cric_score_response.status_code}")
+           
+           # If we get here, both APIs failed
+           raise Exception("All API methods failed")
+           
+       # Continue with normal processing if primary API succeeds
+       processed_matches = []
+       for match in matches:
+           processed_match = process_match(match, logger)
+           if processed_match:
+               # Only add matches that aren't in the ignore list
+               tournament = processed_match.get('tournament', '')
+               if not any(ignored in tournament for ignored in ignore_list):
+                   processed_matches.append(processed_match)
+       
+       # Try to fetch upcoming matches
+       try:
+           upcoming_matches = fetch_upcoming_matches(logger)
+           if upcoming_matches:
+               processed_matches = merge_upcoming_with_current(processed_matches, upcoming_matches, logger)
+       except Exception as e:
+           if logger:
+               logger.error(f"Error fetching upcoming matches: {str(e)}")
+       
+       # Sort matches by status and priority
+       processed_matches.sort(key=lambda m: (
+           {"live": 0, "upcoming": 1, "completed": 2}.get(m['match_status'], 3),
+           m.get('priority', 10)
+       ))
+       
+       # Create the result data
+       result = {
+           'last_updated': current_time,
+           'last_updated_string': timestamp,
+           'matches': processed_matches
+       }
+       
+       # Save to file
+       with open(DATA_FILE, 'w', encoding='utf-8') as f:
+           json.dump(result, f, ensure_ascii=False, indent=2)
+       
+       if logger:
+           logger.info(f"Successfully updated cricket data with {len(processed_matches)} matches")
+       
+       return result
+       
+   except Exception as e:
+       if logger:
+           logger.error(f"Error updating cricket data: {str(e)}")
+       
+       # Try to return existing data if available
+       if os.path.exists(DATA_FILE):
+           try:
+               with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                   existing_data = json.load(f)
+                   existing_data['last_checked'] = timestamp
+                   if logger:
+                       logger.info(f"Loaded existing data with {len(existing_data['matches'])} matches")
+                   return existing_data
+           except Exception as load_error:
+               if logger:
+                   logger.error(f"Failed to load existing data: {str(load_error)}")
+       
+       # Return empty data if nothing else works
+       return {
+           'last_updated': current_time,
+           'last_updated_string': timestamp,
+           'matches': []
+       }

@@ -604,16 +604,7 @@ async def plain_text(request: Request):
     output.append("=================================================================")
     output.append(f"Last updated: {cricket_data.get('last_updated_string', 'Unknown')} ({time_ago})")
     
-    # Add next update info with seconds
-    now = time.time()
-    if NEXT_UPDATE_TIMESTAMP["time"] > now:
-        time_diff = NEXT_UPDATE_TIMESTAMP["time"] - now
-        if time_diff < 60:
-            output.append(f"Next update in approximately {int(time_diff)} seconds.")
-        else:
-            minutes = int(time_diff // 60)
-            seconds = int(time_diff % 60)
-            output.append(f"Next update in approximately {minutes} minute{'s' if minutes > 1 else ''} and {seconds} seconds.")
+   
     
     output.append("Refresh page to update scores.")
     
@@ -684,16 +675,18 @@ async def api_status(request: Request):
         return HTMLResponse(content=f"Error: {str(e)}", status_code=500)
 
 
-# Main function for fetching data
+#Function to periodically check for upcoming matches and live score
 async def update_cricket_data():
     """Background task to update cricket data with adaptive intervals based on data changes"""
     MIN_INTERVAL = 60  # Start with 1-minute interval (in seconds)
     MAX_INTERVAL = 600  # Maximum 10-minute interval (in seconds)
+    UPCOMING_CHECK_INTERVAL = 3600  # Check for upcoming matches every hour (in seconds)
     
     # Track consecutive updates with no changes
     no_change_count = 0
     current_interval = MIN_INTERVAL
     last_data_hash = None
+    last_upcoming_check = 0
     
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -704,20 +697,21 @@ async def update_cricket_data():
             
             cricket_data = None
             
-            # Try CricAPI
+            # Try to fetch live scores (this already includes upcoming matches in the latest version)
             try:
                 app_logger.info("Fetching from CricAPI...")
                 cricket_data = fetch_live_scores(IGNORED_TOURNAMENTS, logger=app_logger)
+                
                 if cricket_data and len(cricket_data.get('matches', [])) > 0:
-                    app_logger.info(f"Successfully fetched data from CricAPI")
+                    app_logger.info(f"Successfully fetched data with {len(cricket_data['matches'])} matches")
                 else:
-                    app_logger.warning(f"CricAPI returned no matches")
+                    app_logger.warning(f"API returned no matches")
                     cricket_data = None
             except Exception as e:
-                app_logger.error(f"Error with CricAPI: {e}")
+                app_logger.error(f"Error with API: {str(e)}")
                 cricket_data = None
             
-            # If we couldn't get data, wait the full interval before retrying
+            # If we couldn't get data, wait before retrying
             if not cricket_data or not cricket_data.get('matches'):
                 app_logger.warning("No matches found from API source")
                 NEXT_UPDATE_TIMESTAMP["time"] = time.time() + current_interval
@@ -763,6 +757,24 @@ async def update_cricket_data():
             # Calculate actual wait time (ensuring we don't have negative wait times)
             actual_wait_seconds = max(1, current_interval - processing_time)
             
+            # Check if any matches are starting soon and adjust interval if needed
+            now = time.time()
+            match_starting_soon = False
+            
+            # Look for any matches scheduled to start in the next interval
+            for match in cricket_data.get('matches', []):
+                if match.get('match_status') == 'upcoming' and match.get('match_time'):
+                    time_until_start = match.get('match_time') - now
+                    if 0 < time_until_start < current_interval + 60:  # +60s buffer
+                        match_starting_soon = True
+                        app_logger.info(f"Match starting soon: {match.get('team1')} vs {match.get('team2')}")
+                        break
+            
+            # If a match is about to start, reduce interval
+            if match_starting_soon and current_interval > MIN_INTERVAL:
+                current_interval = MIN_INTERVAL
+                app_logger.info("Match starting soon, reducing update interval")
+            
             # Update the timestamp dictionary for the UI
             NEXT_UPDATE_TIMESTAMP["time"] = time.time() + actual_wait_seconds
             
@@ -770,13 +782,14 @@ async def update_cricket_data():
             app_logger.info(f"[{current_time}] Data updated. Next update in {actual_wait_seconds:.1f} seconds.")
             
         except Exception as e:
-            app_logger.error(f"[{current_time}] Error updating cricket data: {e}")
+            app_logger.error(f"[{current_time}] Error updating cricket data: {str(e)}")
             # Don't change the interval on errors
             actual_wait_seconds = current_interval
             NEXT_UPDATE_TIMESTAMP["time"] = time.time() + current_interval
         
         # Wait before updating again
         await asyncio.sleep(actual_wait_seconds)
+
 
 @app.on_event("startup")
 async def startup_event():
