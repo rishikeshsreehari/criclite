@@ -6,14 +6,16 @@ import re
 from datetime import datetime
 from pathlib import Path
 import os
-import logging
 from dotenv import load_dotenv
+import glob
 
 # Constants
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FOLDER = BASE_DIR / "data"
 DATA_FILE = DATA_FOLDER / "live_data.json"
 TOURNAMENT_MAPPING_FILE = DATA_FOLDER / "tournament_mapping.json"
+SCORECARD_FOLDER = DATA_FOLDER / "scorecards"
+os.makedirs(SCORECARD_FOLDER, exist_ok=True)
 
 # Ensure data directory exists
 os.makedirs(DATA_FOLDER, exist_ok=True)
@@ -325,6 +327,93 @@ def fetch_upcoming_matches(logger=None):
             logger.error(f"Error fetching upcoming matches: {str(e)}")
         return None
 
+def fetch_match_scorecard(match_id, logger=None):
+    """Fetch detailed scorecard for a match"""
+    try:
+        if logger:
+            logger.info(f"Fetching scorecard for match {match_id}")
+        
+        # Get fresh API key
+        api_key = get_api_key()
+        timestamp = int(time.time())
+        
+        # Build scorecard API URL
+        scorecard_url = f"https://api.cricapi.com/v1/match_scorecard?apikey={api_key}&id={match_id}&ts={timestamp}"
+        
+        # Log masked URL for debugging
+        if logger:
+            masked_url = scorecard_url.replace(api_key, "API_KEY_HIDDEN")
+            logger.info(f"Requesting scorecard URL: {masked_url}")
+        
+        response = requests.get(scorecard_url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Check if the API request was successful
+            if data.get('status') == 'success' and 'data' in data:
+                # Save to file
+                scorecard_file = SCORECARD_FOLDER / f"{match_id}.json"
+                with open(scorecard_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                
+                if logger:
+                    logger.info(f"Successfully saved scorecard for match {match_id}")
+                
+                return data['data']
+            else:
+                if logger:
+                    logger.error(f"API error for scorecard: {data.get('status')}")
+                    logger.error(f"Full response: {data}")
+        else:
+            if logger:
+                logger.error(f"Failed to fetch scorecard: {response.status_code}")
+                
+        return None
+    except Exception as e:
+        if logger:
+            logger.error(f"Error fetching scorecard: {str(e)}")
+        return None
+
+def load_scorecard(match_id):
+    """Load scorecard from JSON file if it exists"""
+    scorecard_file = SCORECARD_FOLDER / f"{match_id}.json"
+    if os.path.exists(scorecard_file):
+        try:
+            with open(scorecard_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('data')
+        except Exception:
+            pass
+    return None
+
+def clean_old_scorecards(current_match_ids, logger=None):
+    """Remove scorecard files for matches no longer in the current list"""
+    try:
+        # Get all scorecard files
+        scorecard_files = glob.glob(str(SCORECARD_FOLDER / "*.json"))
+        
+        # Count before cleaning
+        initial_count = len(scorecard_files)
+        
+        # Check each file
+        for file_path in scorecard_files:
+            file_name = os.path.basename(file_path)
+            match_id = file_name.replace('.json', '')
+            
+            # If match is not in current matches, delete the file
+            if match_id not in current_match_ids:
+                os.remove(file_path)
+                if logger:
+                    logger.info(f"Removed scorecard file for match {match_id}")
+        
+        # Count after cleaning
+        remaining_files = len(glob.glob(str(SCORECARD_FOLDER / "*.json")))
+        if logger:
+            logger.info(f"Cleaned scorecards: {initial_count - remaining_files} removed, {remaining_files} remaining")
+    
+    except Exception as e:
+        if logger:
+            logger.error(f"Error cleaning old scorecards: {str(e)}")
 
 def determine_match_status(match):
     """Determine match status (live, completed, upcoming) from CricAPI data"""

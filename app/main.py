@@ -13,6 +13,7 @@ import os
 import logging.handlers
 import re
 from app.cricket_api_fetcher import fetch_live_scores, DATA_FILE, DATA_FOLDER, IGNORED_TOURNAMENTS
+from app.cricket_api_fetcher import fetch_live_scores, load_scorecard, fetch_match_scorecard, clean_old_scorecards, DATA_FILE, DATA_FOLDER, IGNORED_TOURNAMENTS
 
 app = FastAPI()
 
@@ -378,6 +379,328 @@ def format_match_for_display(match, use_symbols=True):
     
     return box_text
 
+def format_scorecard_as_html(scorecard_data, match_info, show_second_innings_first=True):
+    """Format scorecard data with improved ASCII layout"""
+    if not scorecard_data:
+        return "<div class='no-data'>Scorecard data not available</div>"
+    
+    html = []
+    html.append("<div class='scorecard-container'>")
+    
+    # Extract match details
+    match_name = scorecard_data.get('name', 'Match Scorecard')
+    venue = scorecard_data.get('venue', '')
+    date = scorecard_data.get('date', '')
+    status = scorecard_data.get('status', '')
+    tournament = match_info.get('tournament', 'Cricket Match')
+    match_number = match_info.get('match_number', '')
+    match_type = match_info.get('match_type', '')
+    team1 = match_info.get('team1', '')
+    team2 = match_info.get('team2', '')
+    score1 = match_info.get('score1', '')
+    score2 = match_info.get('score2', '')
+    match_status = match_info.get('status', '')
+    
+    # Define column widths for scorecard tables
+    batter_width = 35
+    dismissal_width = 35
+    stat_width = 6  # For R, B, 4s, 6s
+    sr_width = 8    # For strike rate
+    
+    # Calculate the actual width needed for batting scorecard
+    # Batsman(35) + Dismissal(35) + R(6) + B(6) + 4s(6) + 6s(6) + SR(8)
+    actual_width = batter_width + dismissal_width + (stat_width * 4) + sr_width
+    
+    # Use exactly this width for everything
+    width = actual_width
+    
+    # Create ASCII-style match header box with the exact same width
+    html.append("<pre class='ascii-box'>")
+    html.append("+" + "-" * (width - 2) + "+")
+    
+    # First line - match info
+    if match_number:
+        header_text = f"[LIVE] {match_number}, {venue}, {date}, {tournament}"
+    else:
+        header_text = f"[LIVE] {venue}, {date}, {tournament}"
+    
+    # Handle long header text with wrapping
+    if len(header_text) > width - 4:
+        words = header_text.split()
+        current_line = "| "
+        for word in words:
+            if len(current_line) + len(word) + 1 <= width - 2:
+                current_line += word + " "
+            else:
+                html.append(current_line.ljust(width - 1) + "|")
+                current_line = "| " + word + " "
+        if current_line != "| ":
+            html.append(current_line.ljust(width - 1) + "|")
+    else:
+        padded_text = f"| {header_text.ljust(width - 4)} |"
+        html.append(padded_text)
+    
+    # Separator
+    html.append("|" + "-" * (width - 2) + "|")
+    
+    # Team scores
+    team1_text = f"{team1} {score1}"
+    team2_text = f"{team2} {score2}"
+    html.append(f"| {team1_text.ljust(width - 4)} |")
+    html.append(f"| {team2_text.ljust(width - 4)} |")
+    
+    # Separator
+    html.append("|" + "-" * (width - 2) + "|")
+    
+    # Match status with wrapping if needed
+    status_text = match_status
+    if len(status_text) > width - 4:
+        words = status_text.split()
+        current_line = "| "
+        for word in words:
+            if len(current_line) + len(word) + 1 <= width - 2:
+                current_line += word + " "
+            else:
+                html.append(current_line.ljust(width - 1) + "|")
+                current_line = "| " + word + " "
+        if current_line != "| ":
+            html.append(current_line.ljust(width - 1) + "|")
+    else:
+        html.append(f"| {status_text.ljust(width - 4)} |")
+    
+    # Bottom border
+    html.append("+" + "-" * (width - 2) + "+")
+    html.append("</pre>")
+    
+    # Process innings data
+    scorecard_innings = scorecard_data.get('scorecard', [])
+    
+    # Determine which innings to show first
+    if show_second_innings_first and len(scorecard_innings) > 1:
+        innings_order = list(range(len(scorecard_innings)))
+        # Put the last innings first
+        innings_order = [innings_order[-1]] + innings_order[:-1]
+    else:
+        innings_order = range(len(scorecard_innings))
+    
+    for idx in innings_order:
+        if idx >= len(scorecard_innings):
+            continue
+            
+        inning_data = scorecard_innings[idx]
+        inning_name = inning_data.get('inning', '')
+        is_current_innings = idx == innings_order[0]
+        
+        if inning_name:
+            html.append("<div class='innings-section'>")
+            
+            # Extract team name from inning name
+            team_name = inning_name.split(" Inning")[0]
+            
+            # Create a centered team name header with dashes
+            html.append("<pre class='ascii-innings-header'>")
+            html.append("")
+            centered_innings = f" {team_name} "
+            padding = "-" * ((width - len(centered_innings)) // 2)
+            remaining_padding = width - len(padding) * 2 - len(centered_innings)
+            html.append(padding + centered_innings + padding + ("-" * remaining_padding))
+            html.append("</pre>")
+            
+            # Add batting section
+            html.append("<pre class='ascii-section-header'>")
+            html.append("")
+            html.append("BATTING")
+            html.append("-" * width)  # Full width divider
+            
+            # Header for batting table - with fixed column widths
+            header = f"{'Batsman'.ljust(batter_width)}{'Dismissal'.ljust(dismissal_width)}{'R'.rjust(stat_width)}{'B'.rjust(stat_width)}{'4s'.rjust(stat_width)}{'6s'.rjust(stat_width)}{'SR'.rjust(sr_width)}"
+            html.append(header)
+            html.append("-" * width)  # Full width divider
+            
+            # Add each batsman with fixed width formatting
+            batting = inning_data.get('batting', [])
+            last_dismissal = ""
+            
+            for batsman in batting:
+                name = batsman.get('batsman', {}).get('name', '')
+                dismissal = batsman.get('dismissal-text', '')
+                
+                # Store last dismissal for "Last Bat" info
+                if dismissal and dismissal != "batting" and dismissal != "not out":
+                    last_dismissal = f"{name} {batsman.get('r', 0)} ({batsman.get('b', 0)}b)"
+                
+                # Format name for batting players
+                name_display = name
+                if dismissal == "batting":
+                    name_display = f"{name}*"
+                    dismissal = "not out"
+                
+                runs = batsman.get('r', 0)
+                balls = batsman.get('b', 0)
+                fours = batsman.get('4s', 0)
+                sixes = batsman.get('6s', 0)
+                strike_rate = batsman.get('sr', 0)
+                
+                # Skip players who haven't batted yet
+                if runs == 0 and balls == 0 and dismissal != "not out" and dismissal != "batting":
+                    continue
+                
+                # Format line with fixed widths
+                line = f"{name_display[:batter_width].ljust(batter_width)}{dismissal[:dismissal_width].ljust(dismissal_width)}{str(runs).rjust(stat_width)}{str(balls).rjust(stat_width)}{str(fours).rjust(stat_width)}{str(sixes).rjust(stat_width)}{str(round(strike_rate, 2)).rjust(sr_width)}"
+                html.append(line)
+            
+            # Add extras if available
+            
+            extras = inning_data.get('extras', {}).get('r', 0)
+            if extras:
+                # Format extras line with proper alignment and visual distinction
+                extras_line = f"{'Extras (b, lb, w, nb, p)'.ljust(batter_width)}{' '.ljust(dismissal_width)}{str(extras).rjust(stat_width)}"
+                # Calculate padding needed to fill the full width
+                padding_needed = width - len(extras_line)
+                if padding_needed > 0:
+                    extras_line += " " * padding_needed
+                # Add a blank line before extras for separation
+                html.append("")
+                html.append(extras_line)
+            
+            # Add divider line before total
+            html.append("-" * width)
+            
+            # Calculate and add total with run rate
+            total_runs = sum(batsman.get('r', 0) for batsman in batting) + extras
+            total_wickets = sum(1 for batsman in batting if "not out" not in batsman.get('dismissal-text', '') and "batting" not in batsman.get('dismissal-text', ''))
+            
+            # Get total overs
+            total_overs = 0
+            score_entries = scorecard_data.get('score', [])
+            for score_entry in score_entries:
+                if inning_name in score_entry.get('inning', ''):
+                    total_overs = score_entry.get('o', 0)
+                    break
+                    
+            # If not found, calculate from bowling data
+            if not total_overs:
+                bowling = inning_data.get('bowling', [])
+                max_overs = 0
+                for bowler in bowling:
+                    bowler_overs = bowler.get('o', 0)
+                    try:
+                        if isinstance(bowler_overs, str) and '.' in bowler_overs:
+                            over_parts = bowler_overs.split('.')
+                            bowler_overs = float(over_parts[0]) + float(over_parts[1])/6
+                        max_overs = max(max_overs, float(bowler_overs))
+                    except (ValueError, TypeError):
+                        pass
+                total_overs = max_overs
+            
+            # Calculate run rate
+            run_rate = 0
+            if total_overs:
+                try:
+                    run_rate = total_runs / float(total_overs)
+                except (ValueError, TypeError):
+                    pass
+            
+            # Format the total line with proper formatting and spacing
+            score_display = f"{total_runs}/{total_wickets}"
+            
+            if match_type and match_type.lower() == 't20':
+                # For T20 matches with run rate display
+                left_part = f"<strong>TOTAL</strong>      {total_overs} Ov (RR: {run_rate:.2f})"
+                right_part = f"<strong>{score_display}</strong>"
+                # Calculate spacing to align the score at the right
+                padding_needed = width - len(left_part.replace("<strong>", "").replace("</strong>", "")) - len(right_part.replace("<strong>", "").replace("</strong>", ""))
+                total_text = left_part + " " * padding_needed + right_part
+            else:
+                # For Test/ODI matches
+                left_part = f"<strong>TOTAL</strong>          ({total_wickets} wickets)"
+                right_part = f"<strong>{total_runs}</strong>"
+                padding_needed = width - len(left_part.replace("<strong>", "").replace("</strong>", "")) - len(right_part.replace("<strong>", "").replace("</strong>", ""))
+                total_text = left_part + " " * padding_needed + right_part
+            
+            html.append(total_text)
+            
+            # Add Last Bat and FOW if it's current innings
+            if is_current_innings and last_dismissal:
+                html.append("")
+                html.append(f"Last Bat: {last_dismissal} • FOW: {score_display}")
+            
+            # Add bowling section
+            html.append("")
+            html.append("BOWLING")
+            html.append("-" * width)
+            
+            # Header for bowling table - with fixed column widths
+            bowler_width = 35
+            stat_width = 6
+            wide_stat = 7
+            # Calculate the proper formatting to match the total width
+            remaining_width = width - bowler_width - (stat_width * 6) - wide_stat
+            bowling_header = f"{'Bowler'.ljust(bowler_width)}{'O'.rjust(stat_width)}{'M'.rjust(stat_width)}{'R'.rjust(stat_width)}{'W'.rjust(stat_width)}{'NB'.rjust(stat_width)}{'WD'.rjust(stat_width)}{'Econ'.rjust(wide_stat)}"
+            
+            # Add padding if needed to match the total width
+            if len(bowling_header) < width:
+                bowling_header = bowling_header + " " * (width - len(bowling_header))
+            
+            html.append(bowling_header)
+            html.append("-" * width)
+            
+            # Add each bowler with fixed width formatting
+            bowling = inning_data.get('bowling', [])
+            for bowler in bowling:
+                name = bowler.get('bowler', {}).get('name', '')
+                overs = bowler.get('o', 0)
+                maidens = bowler.get('m', 0)
+                runs = bowler.get('r', 0)
+                wickets = bowler.get('w', 0)
+                no_balls = bowler.get('nb', 0)
+                wides = bowler.get('wd', 0)
+                economy = bowler.get('eco', 0)
+                
+                bowler_line = f"{name[:bowler_width].ljust(bowler_width)}{str(overs).rjust(stat_width)}{str(maidens).rjust(stat_width)}{str(runs).rjust(stat_width)}{str(wickets).rjust(stat_width)}{str(no_balls).rjust(stat_width)}{str(wides).rjust(stat_width)}{str(round(economy, 2)).rjust(wide_stat)}"
+                
+                # Add padding if needed to match the total width
+                if len(bowler_line) < width:
+                    bowler_line = bowler_line + " " * (width - len(bowler_line))
+                    
+                html.append(bowler_line)
+            
+            html.append("</pre>")
+            html.append("</div>")  # End of innings section
+    
+    # Add DRS info with matching width
+    html.append("<pre class='ascii-drs-info'>")
+    html.append("-" * width)
+    html.append("Reviews Remaining: Lucknow Super Giants - 2 of 2, Delhi Capitals - 2 of 2")
+    html.append("-" * width)
+    html.append("</pre>")
+    
+    # Add last updated info
+    current_time = time.time()
+    last_updated = match_info.get('last_updated_string', datetime.now().strftime("%Y-%m-%d %H:%M:%S GMT"))
+    
+    # Calculate time ago
+    time_ago = "just now"
+    last_updated_timestamp = match_info.get('last_updated', current_time)
+    seconds_ago = int(current_time - last_updated_timestamp)
+    
+    if seconds_ago < 60:
+        time_ago = f"{seconds_ago} seconds ago"
+    else:
+        minutes_ago = seconds_ago // 60
+        if minutes_ago == 1:
+            time_ago = "1 minute ago"
+        else:
+            time_ago = f"{minutes_ago} minutes ago"
+    
+    html.append(f"Last updated: {last_updated} ({time_ago})")
+    html.append("")
+    html.append("Page auto-refreshes every 30s")
+    
+    html.append("</div>")  # End of scorecard container
+    
+    return "\n".join(html)
+
 
 # Add custom Jinja2 filters
 @app.on_event("startup")
@@ -404,7 +727,7 @@ async def root(request: Request):
     # Simplify cache control - always use 30 seconds for browser cache
     cache_time = 30
     
-    # Group matches by status
+    # Group matches by status with match IDs
     live_matches = []
     completed_matches = []
     
@@ -415,8 +738,9 @@ async def root(request: Request):
     current_date = datetime.now().date()
     
     for match in cricket_data.get('matches', []):
-        # Get match status
+        # Get match status and ID
         match_status = match.get('match_status', 'unknown')
+        match_id = match.get('match_id', '')
         
         # Filter out old completed matches
         if match_status == "completed":
@@ -431,23 +755,23 @@ async def root(request: Request):
                     pass  # If date parsing fails, include the match
             
             formatted_match = format_match_for_display(match)
-            completed_matches.append(formatted_match)
+            completed_matches.append((match_id, formatted_match))
             
         elif match_status == "live":
             formatted_match = format_match_for_display(match)
-            live_matches.append(formatted_match)
+            live_matches.append((match_id, formatted_match))
             
         else:  # upcoming or unknown
             # Format the match but store it with its start time for sorting
             formatted_match = format_match_for_display(match)
             match_time = match.get('match_time', float('inf'))  # Default to far future if no timestamp
-            upcoming_matches_with_time.append((match_time, formatted_match))
+            upcoming_matches_with_time.append((match_time, match_id, formatted_match))
     
     # Sort upcoming matches by match_time (earliest first)
     upcoming_matches_with_time.sort(key=lambda x: x[0])
     
-    # Extract just the formatted matches in sorted order
-    upcoming_matches = [match_tuple[1] for match_tuple in upcoming_matches_with_time]
+    # Extract just the formatted matches in sorted order with match IDs
+    upcoming_matches = [(match_id, formatted_match) for _, match_id, formatted_match in upcoming_matches_with_time]
     
     # Calculate next update time with seconds
     next_update_text = ""
@@ -479,7 +803,6 @@ async def root(request: Request):
     response.headers["Vary"] = "Cookie"
     
     return response
-
 
 @app.get("/toggle-theme", response_class=HTMLResponse)
 async def toggle_theme(request: Request):
@@ -692,12 +1015,16 @@ async def update_cricket_data():
     MIN_INTERVAL = 60  # Start with 1-minute interval (in seconds)
     MAX_INTERVAL = 600  # Maximum 10-minute interval (in seconds)
     UPCOMING_CHECK_INTERVAL = 3600  # Check for upcoming matches every hour (in seconds)
+    SCORECARD_INTERVAL = 120  # Check for scorecard updates every 2 minutes (in seconds)
     
     # Track consecutive updates with no changes
     no_change_count = 0
+    scorecard_update_count = 0
     current_interval = MIN_INTERVAL
     last_data_hash = None
     last_upcoming_check = 0
+    last_scorecard_update = 0
+    scorecard_update_times = {}  # Track last update time per match
     
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -728,6 +1055,45 @@ async def update_cricket_data():
                 NEXT_UPDATE_TIMESTAMP["time"] = time.time() + current_interval
                 await asyncio.sleep(current_interval)
                 continue
+            
+            # Track match IDs for scorecard cleanup
+            current_match_ids = {match.get('match_id'): True for match in cricket_data.get('matches', [])}
+                
+            # Update scorecards for live and recently completed matches
+            if time.time() - last_scorecard_update >= SCORECARD_INTERVAL:
+                app_logger.info("Updating match scorecards...")
+                
+                scorecard_update_count += 1
+                updated_scorecard_count = 0
+                
+                for match in cricket_data.get('matches', []):
+                    match_id = match.get('match_id')
+                    match_status = match.get('match_status')
+                    
+                    # Update if:
+                    # 1. Match is live
+                    # 2. Match is completed but hasn't been updated yet
+                    # 3. This is an occasional check (every 5 cycles) for completed matches
+                    update_this_match = False
+                    
+                    if match_status == 'live':
+                        update_this_match = True
+                    elif match_status == 'completed':
+                        last_update = scorecard_update_times.get(match_id, 0)
+                        if last_update == 0 or (scorecard_update_count % 5 == 0):
+                            update_this_match = True
+                    
+                    if update_this_match:
+                        scorecard = fetch_match_scorecard(match_id, logger=app_logger)
+                        if scorecard:
+                            updated_scorecard_count += 1
+                            scorecard_update_times[match_id] = time.time()
+                
+                last_scorecard_update = time.time()
+                app_logger.info(f"Updated {updated_scorecard_count} scorecards")
+                
+                # Clean up old scorecard files
+                clean_old_scorecards(current_match_ids, logger=app_logger)
             
             # Check if data has changed by creating a simple hash of the match statuses and scores
             current_data_hash = ""
@@ -824,3 +1190,50 @@ async def startup_event():
     
     # Start background task
     asyncio.create_task(update_cricket_data())
+
+@app.get("/{match_id}", response_class=HTMLResponse)
+async def match_detail(request: Request, match_id: str):
+    """Display detailed scorecard for a match"""
+    # Get theme from cookie
+    theme = request.cookies.get("theme", "light")
+    
+    # Load cricket data to get match info
+    cricket_data = load_cricket_data()
+    
+    # Find the match
+    match_info = None
+    for match in cricket_data.get('matches', []):
+        if match.get('match_id') == match_id:
+            match_info = match
+            break
+    
+    if not match_info:
+        return HTMLResponse(content="Match not found", status_code=404)
+    
+    # Load scorecard data
+    scorecard_data = load_scorecard(match_id)
+    
+    # Format match display
+    formatted_match = format_match_for_display(match_info)
+    
+    # Format scorecard as HTML - show second innings first if it's a live match
+    show_second_innings_first = match_info.get('match_status') == 'live'
+    scorecard_html = format_scorecard_as_html(scorecard_data, match_info, show_second_innings_first) if scorecard_data else None
+    
+    response = templates.TemplateResponse("match_detail.html", {
+        "request": request,
+        "theme": theme,
+        "match": match_info,
+        "formatted_match": formatted_match,
+        "scorecard_html": scorecard_html,
+        "last_updated": cricket_data.get('last_updated_string', "Unknown"),
+        "time_ago": cricket_data.get('time_ago', "Unknown time ago"),
+        "match_status": match_info.get('match_status', ''),
+        "has_scorecard": bool(scorecard_data)
+    })
+    
+    # Set cache control
+    response.headers["Cache-Control"] = "public, max-age=30, s-maxage=60"
+    response.headers["Vary"] = "Cookie"
+    
+    return response
