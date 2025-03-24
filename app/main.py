@@ -786,8 +786,11 @@ async def root(request: Request):
         match_status = match.get('match_status', 'unknown')
         match_id = match.get('match_id', '')
         
-        # Use the same exact formatting for all matches
-        formatted_match = format_match_for_display(match, include_link=True)
+        # Only include scorecard link for live or completed matches, not upcoming
+        include_link = match_status in ["live", "completed"]
+        
+        # Format the match with or without the scorecard link
+        formatted_match = format_match_for_display(match, include_link=include_link)
         
         if match_status == "completed":
             completed_matches.append((match_id, formatted_match))
@@ -1054,6 +1057,7 @@ async def update_cricket_data():
     last_upcoming_check = 0
     last_scorecard_update = 0
     scorecard_update_times = {}  # Track last update time per match
+    completed_match_update_counts = {}  # Track update count for completed matches
     
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1088,8 +1092,8 @@ async def update_cricket_data():
             # Track match IDs for scorecard cleanup
             current_match_ids = {match.get('match_id'): True for match in cricket_data.get('matches', [])}
                 
-            # Update scorecards for live and recently completed matches
-            if time.time() - last_scorecard_update >= SCORECARD_INTERVAL:
+            # Update scorecards following adaptive checking logic
+            if time.time() - last_scorecard_update >= current_interval:  # Use same interval as scores
                 app_logger.info("Updating match scorecards...")
                 
                 scorecard_update_count += 1
@@ -1099,20 +1103,35 @@ async def update_cricket_data():
                     match_id = match.get('match_id')
                     match_status = match.get('match_status')
                     
-                    # Update if:
-                    # 1. Match is live
-                    # 2. Match is completed but hasn't been updated yet
-                    # 3. This is an occasional check (every 5 cycles) for completed matches
-                    update_this_match = False
+                    # Skip upcoming matches completely - no scorecard needed
+                    if match_status == 'upcoming':
+                        continue
                     
-                    if match_status == 'live':
-                        update_this_match = True
-                    elif match_status == 'completed':
-                        last_update = scorecard_update_times.get(match_id, 0)
-                        if last_update == 0 or (scorecard_update_count % 5 == 0):
-                            update_this_match = True
+                    # For completed matches, limit updates to 5 times max
+                    if match_status == 'completed':
+                        # Check if scorecard already exists
+                        existing_scorecard = load_scorecard(match_id)
+                        
+                        # Get current update count for this completed match
+                        update_count = completed_match_update_counts.get(match_id, 0)
+                        
+                        # Only update if:
+                        # 1. No existing scorecard, or
+                        # 2. Haven't reached 5 updates yet
+                        if not existing_scorecard or update_count < 5:
+                            scorecard = fetch_match_scorecard(match_id, logger=app_logger)
+                            if scorecard:
+                                updated_scorecard_count += 1
+                                scorecard_update_times[match_id] = time.time()
+                                
+                                # Increment update count for this match
+                                completed_match_update_counts[match_id] = update_count + 1
+                                app_logger.info(f"Updated completed match {match_id} scorecard ({update_count + 1}/5 updates)")
+                        else:
+                            app_logger.info(f"Skipping completed match {match_id} scorecard update (already updated 5 times)")
                     
-                    if update_this_match:
+                    # For live matches, always update
+                    elif match_status == 'live':
                         scorecard = fetch_match_scorecard(match_id, logger=app_logger)
                         if scorecard:
                             updated_scorecard_count += 1
@@ -1239,6 +1258,12 @@ async def match_detail(request: Request, match_id: str):
     if not match_info:
         return HTMLResponse(content="Match not found", status_code=404)
     
+    # Check if this is an upcoming match - redirect to home if so
+    match_status = match_info.get('match_status', '')
+    if match_status == 'upcoming':
+        app_logger.info(f"Redirecting upcoming match {match_id} to home page")
+        return RedirectResponse(url="/", status_code=303)
+    
     # Load scorecard data
     scorecard_data = load_scorecard(match_id)
     
@@ -1257,12 +1282,16 @@ async def match_detail(request: Request, match_id: str):
         "scorecard_html": scorecard_html,
         "last_updated": cricket_data.get('last_updated_string', "Unknown"),
         "time_ago": cricket_data.get('time_ago', "Unknown time ago"),
-        "match_status": match_info.get('match_status', ''),
+        "match_status": match_status,
         "has_scorecard": bool(scorecard_data)
     })
     
-    # Set cache control
-    response.headers["Cache-Control"] = "public, max-age=30, s-maxage=60"
+    # Set cache control - use longer cache for completed matches
+    if match_status == 'completed':
+        response.headers["Cache-Control"] = "public, max-age=3600, s-maxage=7200"  # 1 hour client, 2 hours CDN
+    else:
+        response.headers["Cache-Control"] = "public, max-age=30, s-maxage=60"  # 30 seconds client, 1 minute CDN
+    
     response.headers["Vary"] = "Cookie"
     
     return response
