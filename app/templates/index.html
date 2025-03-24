@@ -1,58 +1,42 @@
 {% extends "base.html" %}
-
 {% block title %}CricLite - Plain Text Live Cricket Scores{% endblock %}
-
 {% block content %}
 <a href="/" style="text-decoration: none; color: inherit;">
     <pre class="site-title">CRICLITE</pre>
 </a>
 <pre class="site-subtitle">Plain text live cricket scores.</pre>
-
 <div class="theme-toggle">
     <a href="/toggle-theme" style="text-decoration: none"> {{ "[Light] " if theme == "dark" else "[Dark]" }}</a>
 </div>
-
 <pre class="divider">=========================================</pre>
 
 {% if live_matches %}
-<div class="section">
-    <pre class="section-title">[LIVE]
+<pre class="section-title">[LIVE]
 =============</pre>
-    <div class="match-row">
-        {% for match_id, match in live_matches %}
-        <div class="match-col">
-            <a href="/{{ match_id }}" class="match-link">{{ match | safe }}</a>
-        </div>
-        {% endfor %}
-    </div>
+<div class="match-container">
+    {% for match_id, match in live_matches %}
+    <div class="match-box"><a href="/{{ match_id }}" class="match-link"><pre>{{ match }}</pre></a></div>
+    {% endfor %}
 </div>
 {% endif %}
 
 {% if upcoming_matches %}
-<div class="section">
-    <pre class="section-title">[UPCOMING]
+<pre class="section-title">[UPCOMING]
 =============</pre>
-    <div class="match-row">
-        {% for match_id, match in upcoming_matches %}
-        <div class="match-col">
-            <a href="/{{ match_id }}" class="match-link">{{ match | safe }}</a>
-        </div>
-        {% endfor %}
-    </div>
+<div class="match-container">
+    {% for match_id, match in upcoming_matches %}
+    <div class="match-box"><a href="/{{ match_id }}" class="match-link"><pre>{{ match }}</pre></a></div>
+    {% endfor %}
 </div>
 {% endif %}
 
 {% if completed_matches %}
-<div class="section">
-    <pre class="section-title">[COMPLETED]
+<pre class="section-title">[COMPLETED]
 =============</pre>
-    <div class="match-row">
-        {% for match_id, match in completed_matches %}
-        <div class="match-col">
-            <a href="/{{ match_id }}" class="match-link">{{ match | safe }}</a>
-        </div>
-        {% endfor %}
-    </div>
+<div class="match-container">
+    {% for match_id, match in completed_matches %}
+    <div class="match-box"><a href="/{{ match_id }}" class="match-link"><pre>{{ match }}</pre></a></div>
+    {% endfor %}
 </div>
 {% endif %}
 
@@ -63,7 +47,6 @@
     <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
     <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
 </div>    
-
 <div class="timestamp-info">
     <p>Last updated: {{ last_updated }} ({{ time_ago }})<br>
     {% if next_update_text %}Next update in approximately {{ next_update_text }}.<br>{% endif %}
@@ -71,25 +54,39 @@
 </div>
 
 <style>
-    .match-col {
-        font-family: monospace;
-        white-space: pre;
-        line-height: 1.2;
-        margin: 5px 0;
-        overflow: hidden;
-        font-size: 14px;
-        width: 41ch;
-        text-align: left;
+    .match-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 30px; /* Increased spacing between cards */
+        margin: 20px 0;
+    }
+    
+    .match-box {
+        display: inline-block;
+        margin: 15px; /* Increased margin around each box */
+        padding: 0;
+        vertical-align: top;
     }
     
     .match-link {
         color: inherit;
         text-decoration: none;
-        display: block;
     }
     
     .match-link:hover {
         color: var(--link-hover-color);
     }
+    
+    .match-link pre {
+        margin: 0;
+        padding: 0;
+        font-size: 14px;
+        line-height: 1.2;
+        text-align: left;
+        white-space: pre;
+    }
 </style>
+
+
 {% endblock %}

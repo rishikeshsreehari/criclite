@@ -85,7 +85,7 @@ def load_cricket_data():
             pass
     return default_cricket_data
 
-def format_match_for_display(match, use_symbols=True, include_link=True):
+def format_match_for_display(match, use_symbols=True, include_link=False):
     """Format a match into a consistent ASCII box with fixed borders"""
     
     # Get match data
@@ -130,9 +130,10 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
     elif live_state == "stumps":
         status_prefix = "[STUMPS] "
     
-    # Fixed dimensions
-    OUTER_WIDTH = 41
-    INNER_WIDTH = 37
+    # Fixed dimensions for ALL boxes
+    OUTER_WIDTH = 41  # Width including borders (including + characters)
+    INNER_WIDTH = 37  # Width excluding borders
+    TARGET_CONTENT_LINES = 13  # Target number of lines before view scorecard and bottom border
     
     # Create box template
     top_border = "+" + "-" * (OUTER_WIDTH - 2) + "+"
@@ -140,9 +141,11 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
     empty_line = "| " + " " * INNER_WIDTH + " |"
     score_separator = "|" + "-" * (OUTER_WIDTH - 2) + "|"
     
-    # Build the box content
-    box_lines = []
-    box_lines.append(top_border)
+    # Build the content lines (without applying any padding yet)
+    content_lines = []
+    
+    # Add top border
+    content_lines.append(top_border)
     
     # Format header with date and venue
     header = ""
@@ -171,14 +174,14 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
                 else:
                     current_line = word
             else:
-                box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
+                content_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
                 current_line = word
                 
         if current_line:
-            box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
+            content_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
     
     # Add empty line
-    box_lines.append(empty_line)
+    content_lines.append(empty_line)
     
     # Format category line with match type and match number
     category_line = ""
@@ -196,7 +199,7 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
             if len(category_line) + len(tournament) + 3 <= INNER_WIDTH:
                 category_line += f" - {tournament}"
             else:
-                box_lines.append(f"| {category_line.ljust(INNER_WIDTH)} |")
+                content_lines.append(f"| {category_line.ljust(INNER_WIDTH)} |")
                 category_line = tournament
         else:
             category_line = tournament
@@ -214,19 +217,21 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
                 else:
                     current_line = word
             else:
-                box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
+                content_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
                 current_line = word
                 
         if current_line:
-            box_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
+            content_lines.append(f"| {current_line.ljust(INNER_WIDTH)} |")
             
         # Add empty line after category
-        box_lines.append(empty_line)
+        content_lines.append(empty_line)
     
     # Add separator before teams/scores
-    box_lines.append(score_separator)
+    content_lines.append(score_separator)
     
     # Handle different display formats based on match status
+    team_score_lines = []
+    
     if match_status == "live":
         # Determine which team is batting based on toss/status info 
         # and which has a non-zero score
@@ -269,9 +274,9 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
                 completed_score = score1
             
             # Display format: Currently batting team at top
-            box_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
-            box_lines.append(empty_line)
-            box_lines.append(f"| {completed_team}  {completed_score.ljust(INNER_WIDTH - len(completed_team) - 2)} |")
+            team_score_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
+            team_score_lines.append(empty_line)
+            team_score_lines.append(f"| {completed_team}  {completed_score.ljust(INNER_WIDTH - len(completed_team) - 2)} |")
         else:
             # First innings
             if any(phrase in status.lower() for phrase in ["elected to bat", "chose to bat", "opt to bat", "to bowl"]):
@@ -311,31 +316,34 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
                     waiting_team = team1
                 else:
                     # Fallback to original display if can't determine batting team
-                    box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+                    team_score_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
                     if score1:
-                        box_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
+                        team_score_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
                     
-                    box_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+                    team_score_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
                     if score2:
-                        box_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
+                        team_score_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
             
             # Use the ESPN-style format for first innings
             if batting_team and waiting_team:
-                box_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
-                box_lines.append(empty_line)
-                box_lines.append(f"| {waiting_team.ljust(INNER_WIDTH)} |")
+                team_score_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
+                team_score_lines.append(empty_line)
+                team_score_lines.append(f"| {waiting_team.ljust(INNER_WIDTH)} |")
     else:
         # For non-live matches, use the original display format
-        box_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+        team_score_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
         if score1:
-            box_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
+            team_score_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
         
-        box_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+        team_score_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
         if score2:
-            box_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
+            team_score_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
+    
+    # Add the team/score lines
+    content_lines.extend(team_score_lines)
     
     # Add separator before status
-    box_lines.append(score_separator)
+    content_lines.append(score_separator)
     
     # For upcoming matches, use start_time_info instead of status if available
     if match_status == "upcoming" and start_time_info:
@@ -364,30 +372,34 @@ def format_match_for_display(match, use_symbols=True, include_link=True):
         if current_line:
             status_lines.append(current_line)
     
+    # Add the status lines
     for line in status_lines:
-        box_lines.append(f"| {line.ljust(INNER_WIDTH)} |")
+        content_lines.append(f"| {line.ljust(INNER_WIDTH)} |")
     
-    # Add an empty line if there's space
-    if len(box_lines) < 12:  # Assuming we want about 13 lines total with borders
-        box_lines.append(empty_line)
+    # Calculate how many empty lines to add to reach TARGET_CONTENT_LINES
+    empty_lines_needed = TARGET_CONTENT_LINES - len(content_lines)
     
-    # Add a row for the view scorecard link if requested
+    # Add empty lines to make all content boxes the same height
+    for _ in range(max(0, empty_lines_needed)):
+        content_lines.append(empty_line)
+    
+    # Now all boxes have exactly TARGET_CONTENT_LINES lines
+    
+    # Add "View Scorecard" link inside the box if requested
     if include_link:
         # Add a separator before the link
-        box_lines.append(score_separator)
+        content_lines.append(score_separator)
         
-        # Add the link row with centered text
-        link_text = "View Scorecard"
+        # Add "View Scorecard" centered in the box
+        link_text = "Scorecard"
         padding = (INNER_WIDTH - len(link_text)) // 2
-        box_lines.append(f"| {' ' * padding}{link_text}{' ' * (INNER_WIDTH - padding - len(link_text))} |")
+        content_lines.append(f"| {' ' * padding}{link_text}{' ' * (INNER_WIDTH - padding - len(link_text))} |")
     
     # Add bottom border
-    box_lines.append(bottom_border)
+    content_lines.append(bottom_border)
     
-    # Convert to string
-    box_text = "\n".join(box_lines)
-    
-    return box_text
+    # Convert to string and return
+    return "\n".join(content_lines)
 
 
 def format_scorecard_as_html(scorecard_data, match_info, show_second_innings_first=True):
@@ -748,6 +760,8 @@ async def root(request: Request):
     # Current date for filtering
     current_date = datetime.now().date()
     
+    # First pass: collect all matches to determine consistent dimensions
+    all_matches = []
     for match in cricket_data.get('matches', []):
         # Get match status and ID
         match_status = match.get('match_status', 'unknown')
@@ -764,18 +778,23 @@ async def root(request: Request):
                         continue
                 except:
                     pass  # If date parsing fails, include the match
-            
-            formatted_match = format_match_for_display(match, include_link=True)
+        
+        all_matches.append(match)
+    
+    # Format all matches with consistent formatting
+    for match in all_matches:
+        match_status = match.get('match_status', 'unknown')
+        match_id = match.get('match_id', '')
+        
+        # Use the same exact formatting for all matches
+        formatted_match = format_match_for_display(match, include_link=True)
+        
+        if match_status == "completed":
             completed_matches.append((match_id, formatted_match))
-            
         elif match_status == "live":
-            formatted_match = format_match_for_display(match, include_link=True)
             live_matches.append((match_id, formatted_match))
-            
         else:  # upcoming or unknown
-            # Format the match but store it with its start time for sorting
-            formatted_match = format_match_for_display(match, include_link=True)
-            match_time = match.get('match_time', float('inf'))  # Default to far future if no timestamp
+            match_time = match.get('match_time', float('inf'))
             upcoming_matches_with_time.append((match_time, match_id, formatted_match))
     
     # Sort upcoming matches by match_time (earliest first)
@@ -905,6 +924,7 @@ async def plain_text(request: Request):
                 except:
                     pass  # If date parsing fails, include the match
         
+        # Format without the scorecard link for plain text output
         formatted_match = format_match_for_display(match, use_symbols=False, include_link=False)
         
         if match_status == "live":
@@ -962,7 +982,6 @@ async def plain_text(request: Request):
     response.headers["Vary"] = "Cookie"
     
     return response
-
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
