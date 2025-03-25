@@ -1058,6 +1058,8 @@ async def api_status(request: Request):
 
 
 #Function to periodically check for upcoming matches and live score
+# In main.py, update the update_cricket_data function:
+
 async def update_cricket_data():
     """Background task to update cricket data with adaptive intervals based on data changes"""
     MIN_INTERVAL = 60  # Start with 1-minute interval (in seconds)
@@ -1074,6 +1076,7 @@ async def update_cricket_data():
     last_scorecard_update = 0
     scorecard_update_times = {}  # Track last update time per match
     completed_match_update_counts = {}  # Track update count for completed matches
+    consecutive_failures = 0
     
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1091,12 +1094,42 @@ async def update_cricket_data():
                 
                 if cricket_data and len(cricket_data.get('matches', [])) > 0:
                     app_logger.info(f"Successfully fetched data with {len(cricket_data['matches'])} matches")
+                    consecutive_failures = 0  # Reset failure counter
                 else:
                     app_logger.warning(f"API returned no matches")
                     cricket_data = None
+                    consecutive_failures += 1
             except Exception as e:
                 app_logger.error(f"Error with API: {str(e)}")
                 cricket_data = None
+                consecutive_failures += 1
+            
+            # If API fails too many times in succession, restart the service
+            if consecutive_failures >= 5:
+                app_logger.critical("5 consecutive API failures. Attempting to restart service...")
+                try:
+                    # First save the current state before restarting
+                    if os.path.exists(DATA_FILE):
+                        backup_path = DATA_FILE.with_suffix('.backup.json')
+                        import shutil
+                        shutil.copy2(DATA_FILE, backup_path)
+                        app_logger.info(f"Backed up data file to {backup_path}")
+                        
+                    # Attempt to restart the service
+                    result = restart_service(app_logger)
+                    if result:
+                        app_logger.info("Service restart command successful")
+                    else:
+                        app_logger.error("Service restart command failed")
+                except Exception as restart_error:
+                    app_logger.error(f"Error during restart attempt: {str(restart_error)}")
+                    
+                # Reset the counter regardless of restart success
+                consecutive_failures = 0
+                
+                # Wait longer before continuing
+                await asyncio.sleep(60)
+                continue
             
             # If we couldn't get data, wait before retrying
             if not cricket_data or not cricket_data.get('matches'):
@@ -1202,6 +1235,8 @@ async def update_cricket_data():
             now = time.time()
             match_starting_soon = False
             
+            # In main.py, update the update_cricket_data function (continued):
+
             # Look for any matches scheduled to start in the next interval
             for match in cricket_data.get('matches', []):
                 if match.get('match_status') == 'upcoming' and match.get('match_time'):
@@ -1227,10 +1262,12 @@ async def update_cricket_data():
             # Don't change the interval on errors
             actual_wait_seconds = current_interval
             NEXT_UPDATE_TIMESTAMP["time"] = time.time() + current_interval
+            consecutive_failures += 1
         
         # Wait before updating again
         await asyncio.sleep(actual_wait_seconds)
-
+                
+            
 
 @app.on_event("startup")
 async def startup_event():
