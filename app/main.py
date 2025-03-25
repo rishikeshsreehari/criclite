@@ -401,8 +401,7 @@ def format_match_for_display(match, use_symbols=True, include_link=False):
     # Convert to string and return
     return "\n".join(content_lines)
 
-
-def format_scorecard_as_html(scorecard_data, match_info, show_second_innings_first=True):
+def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=None, show_second_innings_first=True):
     """Format scorecard data with improved ASCII layout"""
     if not scorecard_data:
         return "<div class='no-data'>Scorecard data not available</div>"
@@ -694,17 +693,35 @@ def format_scorecard_as_html(scorecard_data, match_info, show_second_innings_fir
     # Add DRS info with matching width
     html.append("<pre class='ascii-drs-info'>")
     html.append("-" * width)
-    html.append("Reviews Remaining: Lucknow Super Giants - 2 of 2, Delhi Capitals - 2 of 2")
+    
+    # Get team names from the actual match data
+    match_teams = scorecard_data.get('teams', [team1, team2])
+    if len(match_teams) < 2:
+        match_teams = [team1, team2]  # Fallback to match_info if needed
+    
+    team1_name = match_teams[0] if len(match_teams) > 0 else "Team 1"
+    team2_name = match_teams[1] if len(match_teams) > 1 else "Team 2"
+    
+    html.append(f"Reviews Remaining: {team1_name} - 2 of 2, {team2_name} - 2 of 2")
     html.append("-" * width)
     html.append("</pre>")
     
     # Add last updated info
     current_time = time.time()
-    last_updated = match_info.get('last_updated_string', datetime.now().strftime("%Y-%m-%d %H:%M:%S GMT"))
+    
+    # Get the timestamp from the scorecard file data if available, otherwise fall back to match_info
+    last_updated_string = None
+    last_updated_timestamp = None
+    
+    if scorecard_file_data and 'last_updated_string' in scorecard_file_data:
+        last_updated_string = scorecard_file_data.get('last_updated_string')
+        last_updated_timestamp = scorecard_file_data.get('last_updated')
+    else:
+        last_updated_string = match_info.get('last_updated_string', datetime.now().strftime("%Y-%m-%d %H:%M:%S GMT"))
+        last_updated_timestamp = match_info.get('last_updated', current_time)
     
     # Calculate time ago
     time_ago = "just now"
-    last_updated_timestamp = match_info.get('last_updated', current_time)
     seconds_ago = int(current_time - last_updated_timestamp)
     
     if seconds_ago < 60:
@@ -716,14 +733,13 @@ def format_scorecard_as_html(scorecard_data, match_info, show_second_innings_fir
         else:
             time_ago = f"{minutes_ago} minutes ago"
     
-    html.append(f"Last updated: {last_updated} ({time_ago})")
-    html.append("")
+    html.append(f"Last updated: {last_updated_string} ({time_ago})")
+    html.append("<br>")  # Add a blank line for spacing
     html.append("Page auto-refreshes every 30s")
     
     html.append("</div>")  # End of scorecard container
     
     return "\n".join(html)
-
 
 # Add custom Jinja2 filters
 @app.on_event("startup")
@@ -1265,14 +1281,16 @@ async def match_detail(request: Request, match_id: str):
         return RedirectResponse(url="/", status_code=303)
     
     # Load scorecard data
-    scorecard_data = load_scorecard(match_id)
+    scorecard_file_data = load_scorecard(match_id)
+    # Extract the actual scorecard data from the full file data
+    scorecard_data = scorecard_file_data.get('data') if scorecard_file_data else None
     
     # Format match display
     formatted_match = format_match_for_display(match_info)
     
     # Format scorecard as HTML - show second innings first if it's a live match
     show_second_innings_first = match_info.get('match_status') == 'live'
-    scorecard_html = format_scorecard_as_html(scorecard_data, match_info, show_second_innings_first) if scorecard_data else None
+    scorecard_html = format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data, show_second_innings_first) if scorecard_data else None
     
     response = templates.TemplateResponse("match_detail.html", {
         "request": request,

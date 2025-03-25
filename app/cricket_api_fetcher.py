@@ -76,6 +76,7 @@ IGNORED_TOURNAMENTS = [
     "County Championship Division 2",
     "Bangladesh Cricket League",
     "Ranji Trophy Plate",
+    "CSA Four-Day Series Division One 2024-25",
     # Add more tournaments to ignore here
 ]
 
@@ -351,6 +352,10 @@ def fetch_match_scorecard(match_id, logger=None):
             
             # Check if the API request was successful
             if data.get('status') == 'success' and 'data' in data:
+                # Add update timestamp to the data
+                data['last_updated'] = time.time()
+                data['last_updated_string'] = time.strftime("%Y-%m-%d %H:%M:%S GMT", time.gmtime())
+                
                 # Save to file
                 scorecard_file = SCORECARD_FOLDER / f"{match_id}.json"
                 with open(scorecard_file, 'w', encoding='utf-8') as f:
@@ -381,7 +386,8 @@ def load_scorecard(match_id):
         try:
             with open(scorecard_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data.get('data')
+                # Return the entire data object, not just data['data']
+                return data
         except Exception:
             pass
     return None
