@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import Response, HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
@@ -1254,6 +1254,67 @@ async def startup_event():
     
     # Start background task
     asyncio.create_task(update_cricket_data())
+    
+@app.get("/robots.txt")
+async def robots_txt():
+    return PlainTextResponse(
+        content="""User-agent: *
+Disallow: /api/
+Disallow: /*?
+Disallow: /*.json
+Disallow: /static/
+Allow: /
+Allow: /about
+
+# Crawl-delay to slow down bots
+Crawl-delay: 10
+
+# Prevent specific bots or aggressive crawlers
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: Yandex
+Disallow: /
+
+# Additional protection
+Sitemap: https://criclite.com/sitemap.xml""", 
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "public, max-age=86400"
+        }
+    )
+
+@app.get("/sitemap.xml")
+async def sitemap_xml():
+    xml_content = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://criclite.com/</loc>
+    <priority>1.0</priority>
+    <changefreq>always</changefreq>
+  </url>
+  <url>
+    <loc>https://criclite.com/about</loc>
+    <priority>0.8</priority>
+    <changefreq>weekly</changefreq>
+  </url>
+</urlset>'''
+    return Response(
+        content=xml_content, 
+        media_type="application/xml",
+        headers={
+            "Cache-Control": "public, max-age=3600"
+        }
+    )
 
 @app.get("/{match_id}", response_class=HTMLResponse)
 async def match_detail(request: Request, match_id: str):
@@ -1313,3 +1374,4 @@ async def match_detail(request: Request, match_id: str):
     response.headers["Vary"] = "Cookie"
     
     return response
+
