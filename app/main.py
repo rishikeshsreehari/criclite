@@ -724,8 +724,8 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
     html.append("+" + "-" * (width - 2) + "+")
     html.append("</pre>")
     
-    # Add spacing between summary and full scorecard
-    html.append("<div class='summary-spacing'></div>")
+    html.append("<br>")  # Single line break for minimal spacing
+
     
     # Rest of the function remains the same - process innings data
     scorecard_innings = scorecard_data.get('scorecard', [])
