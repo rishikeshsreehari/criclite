@@ -195,6 +195,7 @@ IGNORED_TOURNAMENTS = [
     "Bangladesh Cricket League",
     "Ranji Trophy Plate",
     "CSA Four-Day Series Division One 2024-25",
+    "CSA Four-Day Series Division One 2024-25"
     # Add more tournaments to ignore here
 ]
 

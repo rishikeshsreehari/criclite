@@ -85,6 +85,7 @@ def load_cricket_data():
             pass
     return default_cricket_data
 
+
 def format_match_for_display(match, use_symbols=True, include_link=False):
     """Format a match into a consistent ASCII box with fixed borders"""
     
@@ -233,102 +234,148 @@ def format_match_for_display(match, use_symbols=True, include_link=False):
     team_score_lines = []
     
     if match_status == "live":
-        # Determine which team is batting based on toss/status info 
-        # and which has a non-zero score
+        # Improved logic for determining batting team in live matches
         batting_team = None
         batting_score = None
         waiting_team = None
         completed_team = None
         completed_score = None
         
-        # Check if second innings has begun by looking for targets/runs needed in status
-        second_innings_begun = any(phrase in status.lower() for phrase in [
-            "need", "require", "target", "to win", "runs to win", "runs from", "chasing"
-        ])
-        
-        if second_innings_begun:
-            # For second innings, determine which team is currently batting
-            # The team with fewer overs is likely batting now
-            overs1 = 0
-            overs2 = 0
-            if "ov" in score1:
-                try:
-                    overs1 = float(score1.split("(")[1].split(" ov")[0])
-                except:
-                    pass
-            if "ov" in score2:
-                try:
-                    overs2 = float(score2.split("(")[1].split(" ov")[0])
-                except:
-                    pass
+        # First, check which team has a non-empty score
+        if score1 and not score2:
+            batting_team = team1
+            batting_score = score1
+            waiting_team = team2
+        elif score2 and not score1:
+            batting_team = team2
+            batting_score = score2
+            waiting_team = team1
+        # Check for second innings (both teams have scores)
+        elif score1 and score2:
+            # Check for keywords in status indicating second innings
+            second_innings_begun = any(phrase in status.lower() for phrase in [
+                "need", "require", "target", "to win", "runs to win", "runs from", "chasing"
+            ])
             
-            if overs1 <= overs2 and score1.strip() != "0/0 (0.0 ov)":
-                batting_team = team1
-                batting_score = score1
-                completed_team = team2
-                completed_score = score2
-            else:
-                batting_team = team2
-                batting_score = score2
-                completed_team = team1
-                completed_score = score1
-            
-            # Display format: Currently batting team at top
-            team_score_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
-            team_score_lines.append(empty_line)
-            team_score_lines.append(f"| {completed_team}  {completed_score.ljust(INNER_WIDTH - len(completed_team) - 2)} |")
-        else:
-            # First innings
-            if any(phrase in status.lower() for phrase in ["elected to bat", "chose to bat", "opt to bat", "to bowl"]):
-                # Team that won the toss is batting first (or bowling)
-                if "to bowl" in status.lower():
-                    # If team opts to bowl, they bat second
-                    if team1.lower() in status.lower():
-                        batting_team = team2
-                        batting_score = score2
-                        waiting_team = team1
-                    else:
-                        batting_team = team1
-                        batting_score = score1
-                        waiting_team = team2
-                else:
-                    # Team opts to bat
-                    if team1.lower() in status.lower():
-                        batting_team = team1
-                        batting_score = score1
-                        waiting_team = team2
-                    else:
-                        batting_team = team2
-                        batting_score = score2
-                        waiting_team = team1
-            else:
-                # If we can't determine from toss, check which score has actual runs
-                score1_has_runs = any(c.isdigit() and c != '0' for c in score1.split('(')[0]) if score1 else False
-                score2_has_runs = any(c.isdigit() and c != '0' for c in score2.split('(')[0]) if score2 else False
+            if second_innings_begun:
+                # Determine which team is currently batting by checking overs
+                overs1 = 0
+                overs2 = 0
+                if "ov" in score1:
+                    try:
+                        overs1 = float(score1.split("(")[1].split(" ov")[0])
+                    except:
+                        pass
+                if "ov" in score2:
+                    try:
+                        overs2 = float(score2.split("(")[1].split(" ov")[0])
+                    except:
+                        pass
                 
-                if score1_has_runs and not score2_has_runs:
+                if overs1 <= overs2 and score1.strip() != "0/0 (0.0 ov)":
                     batting_team = team1
                     batting_score = score1
-                    waiting_team = team2
-                elif score2_has_runs and not score1_has_runs:
+                    completed_team = team2
+                    completed_score = score2
+                else:
                     batting_team = team2
                     batting_score = score2
-                    waiting_team = team1
+                    completed_team = team1
+                    completed_score = score1
+                
+                # Display format: Currently batting team at top
+                team_score_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
+                team_score_lines.append(empty_line)
+                team_score_lines.append(f"| {completed_team}  {completed_score.ljust(INNER_WIDTH - len(completed_team) - 2)} |")
+            else:
+                # First innings with both teams having some score
+                # Check toss information
+                if any(phrase in status.lower() for phrase in ["elected to bat", "chose to bat", "opt to bat", "to bowl"]):
+                    # Try to determine from status text
+                    if "to bowl" in status.lower():
+                        # Team opting to bowl bats second - check which team opted to bowl
+                        team1_in_status = team1.lower() in status.lower()
+                        team2_in_status = team2.lower() in status.lower()
+                        
+                        if team1_in_status and not team2_in_status:
+                            batting_team = team2
+                            batting_score = score2
+                            waiting_team = team1
+                        elif team2_in_status and not team1_in_status:
+                            batting_team = team1
+                            batting_score = score1
+                            waiting_team = team2
+                        else:
+                            # If can't determine clearly, use the team with more runs
+                            score1_runs = int(score1.split('/')[0]) if score1 and '/' in score1 else 0
+                            score2_runs = int(score2.split('/')[0]) if score2 and '/' in score2 else 0
+                            
+                            if score1_runs >= score2_runs:
+                                batting_team = team1
+                                batting_score = score1
+                                waiting_team = team2
+                            else:
+                                batting_team = team2
+                                batting_score = score2
+                                waiting_team = team1
+                    else:
+                        # Team opting to bat bats first
+                        team1_in_status = team1.lower() in status.lower()
+                        team2_in_status = team2.lower() in status.lower()
+                        
+                        if team1_in_status and not team2_in_status:
+                            batting_team = team1
+                            batting_score = score1
+                            waiting_team = team2
+                        elif team2_in_status and not team1_in_status:
+                            batting_team = team2
+                            batting_score = score2
+                            waiting_team = team1
+                        else:
+                            # If can't determine clearly, use the team with more runs
+                            score1_runs = int(score1.split('/')[0]) if score1 and '/' in score1 else 0
+                            score2_runs = int(score2.split('/')[0]) if score2 and '/' in score2 else 0
+                            
+                            if score1_runs >= score2_runs:
+                                batting_team = team1
+                                batting_score = score1
+                                waiting_team = team2
+                            else:
+                                batting_team = team2
+                                batting_score = score2
+                                waiting_team = team1
                 else:
-                    # Fallback to original display if can't determine batting team
-                    team_score_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
-                    if score1:
-                        team_score_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
+                    # No clear toss info, check which score has more runs
+                    score1_runs = int(score1.split('/')[0]) if score1 and '/' in score1 else 0
+                    score2_runs = int(score2.split('/')[0]) if score2 and '/' in score2 else 0
                     
-                    team_score_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
-                    if score2:
-                        team_score_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
-            
-            # Use the ESPN-style format for first innings
-            if batting_team and waiting_team:
+                    if score1_runs >= score2_runs:
+                        batting_team = team1
+                        batting_score = score1
+                        waiting_team = team2
+                    else:
+                        batting_team = team2
+                        batting_score = score2
+                        waiting_team = team1
+                
+                # Display the determined teams
                 team_score_lines.append(f"| {batting_team}  {batting_score.ljust(INNER_WIDTH - len(batting_team) - 2)} |")
                 team_score_lines.append(empty_line)
                 team_score_lines.append(f"| {waiting_team.ljust(INNER_WIDTH)} |")
+        else:
+            # No scores yet, just show team names
+            team_score_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+            team_score_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+            
+        # If we still haven't determined teams (fallback)
+        if not team_score_lines:
+            team_score_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+            if score1:
+                team_score_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
+            
+            team_score_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+            if score2:
+                team_score_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
     else:
         # For non-live matches, use the original display format
         team_score_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
