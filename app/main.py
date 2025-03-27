@@ -449,7 +449,7 @@ def format_match_for_display(match, use_symbols=True, include_link=False):
     return "\n".join(content_lines)
 
 def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=None, show_second_innings_first=True):
-    """Format scorecard data with improved ASCII layout"""
+    """Format scorecard data with improved ASCII layout and concise match summary"""
     if not scorecard_data:
         return "<div class='no-data'>Scorecard data not available</div>"
     
@@ -511,12 +511,40 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
     
     # Separator
     html.append("|" + "-" * (width - 2) + "|")
+    html.append(f"| {' '.ljust(width - 4)} |")  # Empty line
     
-    # Team scores
-    team1_text = f"{team1} {score1}"
-    team2_text = f"{team2} {score2}"
-    html.append(f"| {team1_text.ljust(width - 4)} |")
-    html.append(f"| {team2_text.ljust(width - 4)} |")
+    # Determine match stage and display scores accordingly
+    if "need" in match_status.lower() and "runs" in match_status.lower():
+        # This is a chase - determine which team is batting
+        chasing_team = None
+        defending_team = None
+        chasing_score = None
+        defending_score = None
+        
+        if team1.lower() in match_status.lower():
+            chasing_team = team1
+            chasing_score = score1
+            defending_team = team2
+            defending_score = score2
+        else:
+            chasing_team = team2
+            chasing_score = score2
+            defending_team = team1
+            defending_score = score1
+        
+        # Show defending team first, then chasing team - ensure full width alignment
+        if defending_team and defending_score:
+            team_score = f"{defending_team} {defending_score}"
+            html.append(f"| {team_score.ljust(width - 4)} |")
+        if chasing_team and chasing_score:
+            team_score = f"{chasing_team} {chasing_score}"
+            html.append(f"| {team_score.ljust(width - 4)} |")
+    else:
+        # Regular match - just show teams in order - ensure full width alignment
+        team_score1 = f"{team1} {score1}"
+        html.append(f"| {team_score1.ljust(width - 4)} |")
+        team_score2 = f"{team2} {score2}"
+        html.append(f"| {team_score2.ljust(width - 4)} |")
     
     # Separator
     html.append("|" + "-" * (width - 2) + "|")
@@ -537,11 +565,169 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
     else:
         html.append(f"| {status_text.ljust(width - 4)} |")
     
-    # Bottom border
+    # Now add the concise summary section if match is live
+    if match_info.get('match_status') == 'live':
+        # Determine batting team
+        batting_team = None
+        bowling_team = None
+        current_innings = None
+        
+        # Find the current innings data
+        for inning in scorecard_data.get('scorecard', []):
+            inning_name = inning.get('inning', '').lower()
+            if team1.lower() in inning_name and score1:
+                batting_team = team1
+                bowling_team = team2
+                current_innings = inning
+                break
+            elif team2.lower() in inning_name and score2:
+                batting_team = team2
+                bowling_team = team1
+                current_innings = inning
+                break
+        
+        # If we found current innings, show summary
+        if current_innings:
+            html.append("|" + "-" * (width - 2) + "|")  # Separator
+            
+            # Batters table header - simplified version with proper alignment
+            header_batsman = "Batsman".ljust(batter_width)
+            header_r = "R".rjust(stat_width)
+            header_b = "B".rjust(stat_width)
+            header_4s = "4s".rjust(stat_width)
+            header_6s = "6s".rjust(stat_width)
+            header_sr = "SR".rjust(sr_width)
+            
+            # Calculate total width of all columns to ensure perfect alignment
+            total_header_width = len(header_batsman) + len(header_r) + len(header_b) + len(header_4s) + len(header_6s) + len(header_sr)
+            padding_needed = width - 4 - total_header_width  # -4 for the "| " and " |" on each end
+            
+            # Add any needed padding to the SR column
+            if padding_needed > 0:
+                header_sr = header_sr + " " * padding_needed
+            
+            # Add the header row with exact alignment
+            html.append(f"| {header_batsman}{header_r}{header_b}{header_4s}{header_6s}{header_sr} |")
+            html.append("|" + "-" * (width - 2) + "|")  # Separator
+            
+            # Find current batters
+            current_batters = []
+            for batsman in current_innings.get('batting', []):
+                if batsman.get('dismissal-text', '') == 'batting' or batsman.get('dismissal-text', '') == 'not out':
+                    name = batsman.get('batsman', {}).get('name', '')
+                    runs = batsman.get('r', 0)
+                    balls = batsman.get('b', 0)
+                    fours = batsman.get('4s', 0)
+                    sixes = batsman.get('6s', 0)
+                    strike_rate = batsman.get('sr', 0)
+                    
+                    # Format name with asterisk for current batsman
+                    name_display = f"{name}*"
+                    
+                    # Format line with fixed widths (no dismissal column in summary)
+                    current_batters.append({
+                        'name': name_display,
+                        'r': runs,
+                        'b': balls,
+                        '4s': fours,
+                        '6s': sixes,
+                        'sr': strike_rate
+                    })
+            
+            # Show current batters
+            for batter in current_batters:
+                name_col = batter['name'].ljust(batter_width)
+                r_col = str(batter['r']).rjust(stat_width)
+                b_col = str(batter['b']).rjust(stat_width)
+                fours_col = str(batter['4s']).rjust(stat_width)
+                sixes_col = str(batter['6s']).rjust(stat_width)
+                sr_col = str(round(batter['sr'], 2)).rjust(sr_width)
+                
+                # Add the same padding to the SR column for consistent alignment
+                if padding_needed > 0:
+                    sr_col = sr_col + " " * padding_needed
+                
+                # Add the perfectly aligned batter row
+                html.append(f"| {name_col}{r_col}{b_col}{fours_col}{sixes_col}{sr_col} |")
+            
+            html.append(f"| {' '.ljust(width - 4)} |")  # Empty line
+            
+            # Find current bowler
+            bowling_innings = None
+            for inning in scorecard_data.get('scorecard', []):
+                if bowling_team and bowling_team.lower() in inning.get('inning', '').lower():
+                    bowling_innings = inning
+                    break
+            
+            if bowling_innings:
+                # Find current bowler (last active)
+                bowlers = bowling_innings.get('bowling', [])
+                current_bowler = None
+                
+                if bowlers:
+                    # Try to find bowler with incomplete over first
+                    decimal_overs = []
+                    for bowler in bowlers:
+                        overs_str = str(bowler.get('o', '0'))
+                        if '.' in overs_str:
+                            decimal_overs.append(bowler)
+                    
+                    # Use bowler with decimal overs if found, otherwise use lowest overs
+                    if decimal_overs:
+                        current_bowler = decimal_overs[0]
+                    else:
+                        # Sort by total overs
+                        sorted_bowlers = sorted(bowlers, key=lambda x: float(str(x.get('o', '0')).replace('-', '.')))
+                        current_bowler = sorted_bowlers[0] if sorted_bowlers else None
+                
+                if current_bowler:
+                    name = current_bowler.get('bowler', {}).get('name', '')
+                    overs = current_bowler.get('o', 0)
+                    maidens = current_bowler.get('m', 0)
+                    runs = current_bowler.get('r', 0)
+                    wickets = current_bowler.get('w', 0)
+                    econ = current_bowler.get('eco', 0)
+                    
+                    # Format current bowler line
+                    bowler_text = f"{name}: {overs}-{maidens}-{runs}-{wickets} (Econ: {econ})"
+                    html.append(f"| {bowler_text.ljust(width - 4)} |")
+            
+            # Find last dismissal
+            last_dismissal = ""
+            for batsman in current_innings.get('batting', []):
+                dismissal = batsman.get('dismissal-text', '')
+                if dismissal and dismissal != 'batting' and dismissal != 'not out':
+                    name = batsman.get('batsman', {}).get('name', '')
+                    runs = batsman.get('r', 0)
+                    balls = batsman.get('b', 0)
+                    last_dismissal = f"Last Dismissal: {name} {runs}({balls}b)"
+                    break
+            
+            if last_dismissal:
+                html.append(f"| {last_dismissal.ljust(width - 4)} |")
+                
+            # DRS info
+            html.append("|" + "-" * (width - 2) + "|")  # Separator
+            
+            # Get team names from the actual match data
+            match_teams = scorecard_data.get('teams', [team1, team2])
+            if len(match_teams) < 2:
+                match_teams = [team1, team2]  # Fallback to match_info if needed
+            
+            team1_name = match_teams[0] if len(match_teams) > 0 else "Team 1"
+            team2_name = match_teams[1] if len(match_teams) > 1 else "Team 2"
+            
+            drs_text = f"Reviews Remaining: {team1_name} - 2 of 2, {team2_name} - 2 of 2"
+            html.append(f"| {drs_text.ljust(width - 4)} |")
+    
+    # Close the box - remove the empty line at the bottom
     html.append("+" + "-" * (width - 2) + "+")
     html.append("</pre>")
     
-    # Process innings data
+    # Add spacing between summary and full scorecard
+    html.append("<div class='summary-spacing'></div>")
+    
+    # Rest of the function remains the same - process innings data
     scorecard_innings = scorecard_data.get('scorecard', [])
     
     # Determine which innings to show first
@@ -619,7 +805,6 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 html.append(line)
             
             # Add extras if available
-            
             extras = inning_data.get('extras', {}).get('r', 0)
             if extras:
                 # Format extras line with proper alignment and visual distinction
@@ -737,21 +922,22 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             html.append("</pre>")
             html.append("</div>")  # End of innings section
     
-    # Add DRS info with matching width
-    html.append("<pre class='ascii-drs-info'>")
-    html.append("-" * width)
-    
-    # Get team names from the actual match data
-    match_teams = scorecard_data.get('teams', [team1, team2])
-    if len(match_teams) < 2:
-        match_teams = [team1, team2]  # Fallback to match_info if needed
-    
-    team1_name = match_teams[0] if len(match_teams) > 0 else "Team 1"
-    team2_name = match_teams[1] if len(match_teams) > 1 else "Team 2"
-    
-    html.append(f"Reviews Remaining: {team1_name} - 2 of 2, {team2_name} - 2 of 2")
-    html.append("-" * width)
-    html.append("</pre>")
+    # Add DRS info with matching width for the detailed scorecard
+    if not match_info.get('match_status') == 'live':  # Only show if not already shown in summary
+        html.append("<pre class='ascii-drs-info'>")
+        html.append("-" * width)
+        
+        # Get team names from the actual match data
+        match_teams = scorecard_data.get('teams', [team1, team2])
+        if len(match_teams) < 2:
+            match_teams = [team1, team2]  # Fallback to match_info if needed
+        
+        team1_name = match_teams[0] if len(match_teams) > 0 else "Team 1"
+        team2_name = match_teams[1] if len(match_teams) > 1 else "Team 2"
+        
+        html.append(f"Reviews Remaining: {team1_name} - 2 of 2, {team2_name} - 2 of 2")
+        html.append("-" * width)
+        html.append("</pre>")
     
     # Add last updated info
     current_time = time.time()

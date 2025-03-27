@@ -49,7 +49,8 @@
     pre.ascii-box,
     pre.ascii-innings-header,
     pre.ascii-section-header,
-    pre.ascii-drs-info {
+    pre.ascii-drs-info,
+    pre.ascii-match-summary {
         font-family: monospace;
         margin: 0;
         padding: 0;
@@ -93,12 +94,17 @@
         margin: 2em 0;
     }
     
+    .summary-separator {
+        height: 10px;
+    }
+    
     /* Responsive adjustments */
     @media (max-width: 768px) {
         pre.ascii-box,
         pre.ascii-innings-header,
         pre.ascii-section-header,
-        pre.ascii-drs-info {
+        pre.ascii-drs-info,
+        pre.ascii-match-summary {
             font-size: 13px;
         }
     }
@@ -107,10 +113,18 @@
         pre.ascii-box,
         pre.ascii-innings-header,
         pre.ascii-section-header,
-        pre.ascii-drs-info {
+        pre.ascii-drs-info,
+        pre.ascii-match-summary {
             font-size: 12px;
         }
+    }
+
+    .summary-spacing {
+        height: 15px;
+        border-bottom: 1px dashed var(--border-color);
+        margin-bottom: 15px;
     }
 </style>
 
 {% endblock %}
+
