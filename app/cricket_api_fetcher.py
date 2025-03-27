@@ -195,7 +195,7 @@ IGNORED_TOURNAMENTS = [
     "Bangladesh Cricket League",
     "Ranji Trophy Plate",
     "CSA Four-Day Series Division One 2024-25",
-    "CSA Four-Day Series Division One 2024-25"
+
     # Add more tournaments to ignore here
 ]
 
@@ -1035,6 +1035,22 @@ def fetch_live_scores(ignore_list=None, logger=None):
   if ignore_list is None:
       ignore_list = IGNORED_TOURNAMENTS
   
+  # Teams to ignore (mostly domestic teams)
+  IGNORED_TEAMS = [
+      "Western Province", 
+      "Boland", 
+      "Lions", 
+      "Dolphins", 
+      "Titans", 
+      "North West",
+      "Knights",
+      "Warriors",
+      "Eastern Province",
+      "Free State",
+      "KwaZulu-Natal Inland",
+      "Border"
+  ]
+  
   try:
       # Try primary API first
       matches = fetch_current_matches(logger)
@@ -1066,6 +1082,16 @@ def fetch_live_scores(ignore_list=None, logger=None):
                           # Skip ignored tournaments
                           series_name = match.get('series', '')
                           if any(ignored in series_name for ignored in ignore_list):
+                              continue
+                          
+                          # Get team names
+                          team1 = match.get('t1', '')
+                          team2 = match.get('t2', '')
+                          
+                          # Skip if either team is in the ignored teams list
+                          if any(team in team1 for team in IGNORED_TEAMS) or any(team in team2 for team in IGNORED_TEAMS):
+                              if logger:
+                                  logger.info(f"Ignoring match with teams: {team1} vs {team2}")
                               continue
                               
                           processed_match = process_criclive_match(match, logger)
@@ -1136,10 +1162,25 @@ def fetch_live_scores(ignore_list=None, logger=None):
       for match in matches:
           processed_match = process_match(match, logger)
           if processed_match:
-              # Only add matches that aren't in the ignore list
+              # Get tournament and team names
               tournament = processed_match.get('tournament', '')
-              if not any(ignored in tournament for ignored in ignore_list):
-                  processed_matches.append(processed_match)
+              team1 = processed_match.get('team1', '')
+              team2 = processed_match.get('team2', '')
+              
+              # Skip if tournament is in ignore list
+              if any(ignored in tournament for ignored in ignore_list):
+                  if logger:
+                      logger.info(f"Ignoring match with tournament: {tournament}")
+                  continue
+                  
+              # Skip if either team is in the ignored teams list
+              if any(team in team1 for team in IGNORED_TEAMS) or any(team in team2 for team in IGNORED_TEAMS):
+                  if logger:
+                      logger.info(f"Ignoring match with teams: {team1} vs {team2}")
+                  continue
+                  
+              # If passes all filters, add to processed matches
+              processed_matches.append(processed_match)
       
       # Try to fetch upcoming matches
       try:
