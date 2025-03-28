@@ -14,6 +14,17 @@
 
 <pre class="divider">=========================================</pre>
 
+<pre class="data-warning-banner">
+    +-----------------------------------------------------------+
+    |                 SCORECARD DATA ISSUE!                     |
+    |                                                           |
+    |  Since 27-03-2025, our data provider has been supplying   |
+    |  inaccurate scorecard data. We are working on a fix.      |
+    |              Sorry for the inconvenience.                 |
+    |                                                           |
+    +-----------------------------------------------------------+
+</pre>
+
 <div class="match-details">
     {% if has_scorecard %}
     <div class="scorecard-wrapper">
@@ -30,7 +41,6 @@
     
     <p class="back-link"><a href="/">← Back to all matches</a></p>
 </div>
-
 
 <style>
     .match-details {
@@ -98,6 +108,13 @@
         height: 10px;
     }
     
+    /* Data Accuracy Warning Banner */
+    .data-warning-banner {
+        text-align: center;
+        margin: 1em 0;
+        white-space: pre-wrap;
+    }
+    
     /* Responsive adjustments */
     @media (max-width: 768px) {
         pre.ascii-box,
@@ -118,9 +135,6 @@
             font-size: 12px;
         }
     }
-
-    
 </style>
 
 {% endblock %}
-
