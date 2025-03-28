@@ -628,8 +628,10 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             # Find current batters
             current_batters = []
             for batsman in current_innings.get('batting', []):
-                if batsman.get('dismissal-text', '') == 'batting' or batsman.get('dismissal-text', '') == 'not out':
+                dismissal_raw = batsman.get('dismissal-text', '').lower()
+                if dismissal_raw == 'batting' or dismissal_raw == 'not out':
                     name = batsman.get('batsman', {}).get('name', '')
+                    name = name.title() # To Capitalize the name
                     runs = batsman.get('r', 0)
                     balls = batsman.get('b', 0)
                     fours = batsman.get('4s', 0)
@@ -697,6 +699,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 
                 if current_bowler:
                     name = current_bowler.get('bowler', {}).get('name', '')
+                    name = name.title() # To Capitalize the name
                     overs = current_bowler.get('o', 0)
                     maidens = current_bowler.get('m', 0)
                     runs = current_bowler.get('r', 0)
@@ -710,9 +713,13 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             # Find last dismissal
             last_dismissal = ""
             for batsman in current_innings.get('batting', []):
-                dismissal = batsman.get('dismissal-text', '')
-                if dismissal and dismissal != 'batting' and dismissal != 'not out':
+                dismissal_raw = batsman.get('dismissal-text', '').lower()
+                dismissal = ' '.join(word.capitalize() if word.lower() not in ['b', 'c', 'lbw', 'run', 'out','st','hit','wicket','retired','hurt','timed','obstructing','the'
+                'field','handled','ball', 'not'] else word.lower()
+                     for word in dismissal_raw.split())
+                if dismissal and dismissal.lower() != 'batting' and dismissal.lower() != 'not out':
                     name = batsman.get('batsman', {}).get('name', '')
+                    name = name.title() # To Capitalize the name
                     runs = batsman.get('r', 0)
                     balls = batsman.get('b', 0)
                     last_dismissal = f"Last Dismissal: {name} {runs}({balls}b)"
@@ -793,17 +800,28 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             
             for batsman in batting:
                 name = batsman.get('batsman', {}).get('name', '')
-                dismissal = batsman.get('dismissal-text', '')
+                name = name.title() # To Capitalize the name
+                dismissal_raw = batsman.get('dismissal-text', '')
+                
+                if dismissal_raw.lower() == 'batting' or dismissal_raw.lower() == 'not out':
+                    # Always use "not out" with lowercase 'not'
+                    dismissal = 'not out'
+                else:
+                    # Apply formatting to other dismissal types
+                    dismissal = ' '.join(
+                        word.capitalize() if word.lower() not in ['b', 'c', 'lbw', 'run', 'out','st','hit','wicket','retired','hurt','timed','obstructing','the','field','handled','ball']
+                        else word.lower()
+                        for word in dismissal_raw.split()
+                    )
                 
                 # Store last dismissal for "Last Bat" info
-                if dismissal and dismissal != "batting" and dismissal != "not out":
+                if dismissal_raw and dismissal_raw.lower() not in ["batting", "not out"]:
                     last_dismissal = f"{name} {batsman.get('r', 0)} ({batsman.get('b', 0)}b)"
                 
                 # Format name for batting players
                 name_display = name
-                if dismissal == "batting":
+                if dismissal_raw.lower() == 'batting' or dismissal_raw.lower() == 'not out':
                     name_display = f"{name}*"
-                    dismissal = "not out"
                 
                 runs = batsman.get('r', 0)
                 balls = batsman.get('b', 0)
@@ -812,7 +830,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 strike_rate = batsman.get('sr', 0)
                 
                 # Skip players who haven't batted yet
-                if runs == 0 and balls == 0 and dismissal != "not out" and dismissal != "batting":
+                if runs == 0 and balls == 0 and dismissal.lower() != "not out" and dismissal_raw.lower() != "batting":
                     continue
                 
                 # Format line with fixed widths
@@ -837,7 +855,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             
             # Calculate and add total with run rate
             total_runs = sum(batsman.get('r', 0) for batsman in batting) + extras
-            total_wickets = sum(1 for batsman in batting if "not out" not in batsman.get('dismissal-text', '') and "batting" not in batsman.get('dismissal-text', ''))
+            total_wickets = sum(1 for batsman in batting if batsman.get('dismissal-text', '').lower() not in ['not out', 'batting'])
             
             # Get total overs
             total_overs = 0
@@ -918,6 +936,8 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             bowling = inning_data.get('bowling', [])
             for bowler in bowling:
                 name = bowler.get('bowler', {}).get('name', '')
+                name = ' '.join(word.capitalize() for word in name.split())
+                # name = name.title() # To Capitalize the name
                 overs = bowler.get('o', 0)
                 maidens = bowler.get('m', 0)
                 runs = bowler.get('r', 0)
@@ -988,6 +1008,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
     html.append("</div>")  # End of scorecard container
     
     return "\n".join(html)
+
 
 # Add custom Jinja2 filters
 @app.on_event("startup")
