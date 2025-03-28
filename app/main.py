@@ -812,9 +812,17 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 if runs == 0 and balls == 0 and dismissal != "not out" and dismissal != "batting":
                     continue
                 
+                # Format line 1: name and stats
+                line1 = f"{name:<20}{str(runs):>3} {str(balls):>3} {str(fours):>3} {str(sixes):>3} {str(round(strike_rate, 2)):>6}"
+                html.append(line1)
+
+                # Format line 2: dismissal (if not not-out)
+                if dismissal.lower() not in ["not out", "batting"]:
+                    html.append(f"  {dismissal}")
+
                 # Format line with fixed widths
-                line = f"{name_display[:batter_width].ljust(batter_width)}{dismissal[:dismissal_width].ljust(dismissal_width)}{str(runs).rjust(stat_width)}{str(balls).rjust(stat_width)}{str(fours).rjust(stat_width)}{str(sixes).rjust(stat_width)}{str(round(strike_rate, 2)).rjust(sr_width)}"
-                html.append(line)
+                #line = f"{name_display[:batter_width].ljust(batter_width)}{dismissal[:dismissal_width].ljust(dismissal_width)}{str(runs).rjust(stat_width)}{str(balls).rjust(stat_width)}{str(fours).rjust(stat_width)}{str(sixes).rjust(stat_width)}{str(round(strike_rate, 2)).rjust(sr_width)}"
+                #html.append(line)
             
             # Add extras if available
             extras = inning_data.get('extras', {}).get('r', 0)
