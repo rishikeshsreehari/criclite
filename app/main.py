@@ -697,7 +697,10 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             # Find last dismissal
             last_dismissal = ""
             for batsman in current_innings.get('batting', []):
-                dismissal = batsman.get('dismissal-text', '')
+                dismissal_raw = batsman.get('dismissal-text', '')
+                dismissal = ' '.join(word.capitalize() if word.lower() not in ['b', 'c', 'lbw', 'run', 'out','st','hit','wicket','retired','hurt','timed','obstructing','the'
+                'field','handled','ball'] else word.lower()
+                     for word in dismissal_raw.split())
                 if dismissal and dismissal != 'batting' and dismissal != 'not out':
                     name = batsman.get('batsman', {}).get('name', '')
                     name = name.title() # To Capitalize the name
@@ -782,7 +785,12 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             for batsman in batting:
                 name = batsman.get('batsman', {}).get('name', '')
                 name = name.title() # To Capitalize the name
-                dismissal = batsman.get('dismissal-text', '')
+                dismissal_raw  = batsman.get('dismissal-text', '')
+                dismissal = ' '.join(
+                    word.capitalize() if word.lower() not in ['b', 'c', 'lbw', 'run', 'out','st','hit','wicket','retired','hurt','timed','obstructing','the','field','handled','ball']
+                    else word.lower()
+                    for word in dismissal_raw.split()
+                )
                 
                 # Store last dismissal for "Last Bat" info
                 if dismissal and dismissal != "batting" and dismissal != "not out":
@@ -907,7 +915,8 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             bowling = inning_data.get('bowling', [])
             for bowler in bowling:
                 name = bowler.get('bowler', {}).get('name', '')
-                name = name.title() # To Capitalize the name
+                name = ' '.join(word.capitalize() for word in name.split())
+                # name = name.title() # To Capitalize the name
                 overs = bowler.get('o', 0)
                 maidens = bowler.get('m', 0)
                 runs = bowler.get('r', 0)
