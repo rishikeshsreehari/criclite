@@ -630,6 +630,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             for batsman in current_innings.get('batting', []):
                 if batsman.get('dismissal-text', '') == 'batting' or batsman.get('dismissal-text', '') == 'not out':
                     name = batsman.get('batsman', {}).get('name', '')
+                    name = name.title() # To Capitalize the name
                     runs = batsman.get('r', 0)
                     balls = batsman.get('b', 0)
                     fours = batsman.get('4s', 0)
@@ -697,6 +698,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 
                 if current_bowler:
                     name = current_bowler.get('bowler', {}).get('name', '')
+                    name = name.title() # To Capitalize the name
                     overs = current_bowler.get('o', 0)
                     maidens = current_bowler.get('m', 0)
                     runs = current_bowler.get('r', 0)
@@ -713,6 +715,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 dismissal = batsman.get('dismissal-text', '')
                 if dismissal and dismissal != 'batting' and dismissal != 'not out':
                     name = batsman.get('batsman', {}).get('name', '')
+                    name = name.title() # To Capitalize the name
                     runs = batsman.get('r', 0)
                     balls = batsman.get('b', 0)
                     last_dismissal = f"Last Dismissal: {name} {runs}({balls}b)"
@@ -793,6 +796,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             
             for batsman in batting:
                 name = batsman.get('batsman', {}).get('name', '')
+                name = name.title() # To Capitalize the name
                 dismissal = batsman.get('dismissal-text', '')
                 
                 # Store last dismissal for "Last Bat" info
@@ -918,6 +922,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             bowling = inning_data.get('bowling', [])
             for bowler in bowling:
                 name = bowler.get('bowler', {}).get('name', '')
+                name = name.title() # To Capitalize the name
                 overs = bowler.get('o', 0)
                 maidens = bowler.get('m', 0)
                 runs = bowler.get('r', 0)
