@@ -233,7 +233,22 @@ def format_match_for_display(match, use_symbols=True, include_link=False):
     # Handle different display formats based on match status
     team_score_lines = []
     
-    if match_status == "live":
+    # Check specifically for Test match with multiple innings
+    is_test_match = match_type and match_type.upper() == "TEST"
+    has_multiple_innings = "&" in score1 or "&" in score2
+    
+    if is_test_match and has_multiple_innings:
+        # Special handling for Test matches with multiple innings
+        team_score_lines.append(f"| {team1.ljust(INNER_WIDTH)} |")
+        if score1:
+            team_score_lines.append(f"| {score1.ljust(INNER_WIDTH)} |")
+        
+        team_score_lines.append(empty_line)
+        
+        team_score_lines.append(f"| {team2.ljust(INNER_WIDTH)} |")
+        if score2:
+            team_score_lines.append(f"| {score2.ljust(INNER_WIDTH)} |")
+    elif match_status == "live":
         # Improved logic for determining batting team in live matches
         batting_team = None
         batting_score = None
