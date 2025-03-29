@@ -471,13 +471,14 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
     match_status = match_info.get('status', '')
     
     # Define column widths for scorecard tables
-    batter_width = 35
-    dismissal_width = 35
-    stat_width = 6  # For R, B, 4s, 6s
-    sr_width = 8    # For strike rate
+    batter_width = 30
+    dismissal_width = 30
+    stat_width = 5  # For R, B, 4s, 6s
+    sr_width = 6    # For strike rate
     
     # Calculate the actual width needed for batting scorecard
     # Batsman(35) + Dismissal(35) + R(6) + B(6) + 4s(6) + 6s(6) + SR(8)
+    # Test 1:  Batsman(30) + Dismissal(30) + R(5) + B(5) + 4s(5) + 6s(5) + SR(6)
     actual_width = batter_width + dismissal_width + (stat_width * 4) + sr_width
     
     # Use exactly this width for everything
@@ -774,7 +775,8 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             html.append("-" * width)  # Full width divider
             
             # Header for batting table - with fixed column widths
-            header = f"{'Batsman'.ljust(batter_width)}{'Dismissal'.ljust(dismissal_width)}{'R'.rjust(stat_width)}{'B'.rjust(stat_width)}{'4s'.rjust(stat_width)}{'6s'.rjust(stat_width)}{'SR'.rjust(sr_width)}"
+            # Removed 'Dismissal' from header
+            header = f"{'Batsman'.ljust(batter_width)}{' '.ljust(dismissal_width)}{'R'.rjust(stat_width)}{'B'.rjust(stat_width)}{'4s'.rjust(stat_width)}{'6s'.rjust(stat_width)}{'SR'.rjust(sr_width)}"
             html.append(header)
             html.append("-" * width)  # Full width divider
             
@@ -812,17 +814,15 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 if runs == 0 and balls == 0 and dismissal != "not out" and dismissal != "batting":
                     continue
                 
-                # Format line 1: name and stats
-                line1 = f"{name:<20}{str(runs):>3} {str(balls):>3} {str(fours):>3} {str(sixes):>3} {str(round(strike_rate, 2)):>6}"
+                # Format line with fixed widths 
+                # Line 1: Batsman name and stats (dismissal omitted)
+                line1 = f"{name_display[:batter_width].ljust(batter_width)}{' '.ljust(dismissal_width)}{str(runs).rjust(stat_width)}{str(balls).rjust(stat_width)}{str(fours).rjust(stat_width)}{str(sixes).rjust(stat_width)}{str(round(strike_rate, 2)).rjust(sr_width)}"
                 html.append(line1)
 
-                # Format line 2: dismissal (if not not-out)
+                # Line 2: Dismissal info, if not "not out" or "batting"
                 if dismissal.lower() not in ["not out", "batting"]:
-                    html.append(f"  {dismissal}")
-
-                # Format line with fixed widths
-                #line = f"{name_display[:batter_width].ljust(batter_width)}{dismissal[:dismissal_width].ljust(dismissal_width)}{str(runs).rjust(stat_width)}{str(balls).rjust(stat_width)}{str(fours).rjust(stat_width)}{str(sixes).rjust(stat_width)}{str(round(strike_rate, 2)).rjust(sr_width)}"
-                #html.append(line)
+                    dismissal_line = f"{' '.ljust(batter_width)}{dismissal[:dismissal_width].ljust(dismissal_width)}{' '.rjust(stat_width * 4 + sr_width)}"
+                    html.append(dismissal_line)
             
             # Add extras if available
             extras = inning_data.get('extras', {}).get('r', 0)
