@@ -1041,7 +1041,6 @@ def fetch_live_scores(ignore_list=None, logger=None):
       "Boland", 
       "Lions", 
       "Dolphins", 
-      "Titans", 
       "North West",
       "Knights",
       "Warriors",
