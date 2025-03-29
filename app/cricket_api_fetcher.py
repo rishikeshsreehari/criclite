@@ -1047,7 +1047,9 @@ def fetch_live_scores(ignore_list=None, logger=None):
       "Eastern Province",
       "Free State",
       "KwaZulu-Natal Inland",
-      "Border"
+      "Border",
+      "Wellington",
+      "Central Districts",
   ]
   
   try:
