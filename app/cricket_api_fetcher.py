@@ -195,7 +195,13 @@ IGNORED_TOURNAMENTS = [
     "Bangladesh Cricket League",
     "Ranji Trophy Plate",
     "CSA Four-Day Series Division One 2024-25",
-
+    "The North American T20 Cup, 2025",
+    "Central American Cricket Championships, 2025",
+    "Womens T20I Quadrangular Series 2025",
+    "ICC Womens World Cup Qualifier, 2025",
+    "Tri-Nation Series in UAE, 2025",
+    "Pakistan Super League, 2025",
+    "Central American Cricket Championships, 2025"
     # Add more tournaments to ignore here
 ]
 
@@ -1048,9 +1054,32 @@ def fetch_live_scores(ignore_list=None, logger=None):
       "Free State",
       "KwaZulu-Natal Inland",
       "Border",
+      "Titans",
       "Wellington",
       "Central Districts",
-  ]
+      "Northern Knights",
+      "Warwickshire",
+      "Surrey",
+      "Worcestershire",
+      "Durham",
+      "Lancashire",
+      "Yorkshire",
+      "Nottinghamshire",
+      "Leicestershire",
+      "Gloucestershire",
+      "Somerset",
+      "Hampshire",
+      "Sussex",
+      "Essex",
+      "Kent",
+      "Middlesex",
+      "Northamptonshire",
+      "Derbyshire",
+      "Glamorgan",
+      "Cardiff",
+      "Lancashire"
+          ]
+  
   
   try:
       # Try primary API first
@@ -1089,12 +1118,14 @@ def fetch_live_scores(ignore_list=None, logger=None):
                           team1 = match.get('t1', '')
                           team2 = match.get('t2', '')
                           
-                          # Skip if either team is in the ignored teams list
-                          if any(team in team1 for team in IGNORED_TEAMS) or any(team in team2 for team in IGNORED_TEAMS):
-                              if logger:
-                                  logger.info(f"Ignoring match with teams: {team1} vs {team2}")
-                              continue
-                              
+                          # Skip if either team exactly matches a team in the ignored teams list
+                          if team1 in IGNORED_TEAMS or team2 in IGNORED_TEAMS:
+                            if logger:
+                                logger.info(f"Ignoring match with teams: {team1} vs {team2}")
+                            continue
+
+                          
+                          
                           processed_match = process_criclive_match(match, logger)
                           if processed_match:
                               processed_matches.append(processed_match)
@@ -1175,10 +1206,11 @@ def fetch_live_scores(ignore_list=None, logger=None):
                   continue
                   
               # Skip if either team is in the ignored teams list
-              if any(team in team1 for team in IGNORED_TEAMS) or any(team in team2 for team in IGNORED_TEAMS):
-                  if logger:
-                      logger.info(f"Ignoring match with teams: {team1} vs {team2}")
-                  continue
+              # Skip if either team exactly matches a team in the ignored teams list
+              if team1 in IGNORED_TEAMS or team2 in IGNORED_TEAMS:
+                if logger:
+                    logger.info(f"Ignoring match with teams: {team1} vs {team2}")
+                continue
                   
               # If passes all filters, add to processed matches
               processed_matches.append(processed_match)
