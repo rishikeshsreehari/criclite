@@ -493,7 +493,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
     
     # Calculate the actual width needed for batting scorecard
     # Batsman(35) + Dismissal(35) + R(6) + B(6) + 4s(6) + 6s(6) + SR(8)
-    actual_width = batter_width + dismissal_width + (stat_width * 4) + sr_width
+    actual_width = batter_width + (stat_width * 4) + sr_width
     
     # Use exactly this width for everything
     width = actual_width
@@ -606,7 +606,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             html.append("|" + "-" * (width - 2) + "|")  # Separator
             
             # Batters table header - simplified version with proper alignment
-            header_batsman = "Batsman".ljust(batter_width)
+            header_batsman = "Batter".ljust(batter_width)
             header_r = "R".rjust(stat_width)
             header_b = "B".rjust(stat_width)
             header_4s = "4s".rjust(stat_width)
@@ -790,7 +790,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             html.append("-" * width)  # Full width divider
             
             # Header for batting table - with fixed column widths
-            header = f"{'Batsman'.ljust(batter_width)}{'Dismissal'.ljust(dismissal_width)}{'R'.rjust(stat_width)}{'B'.rjust(stat_width)}{'4s'.rjust(stat_width)}{'6s'.rjust(stat_width)}{'SR'.rjust(sr_width)}"
+            header = f"{'Batter'.ljust(batter_width)}{'R'.rjust(stat_width)}{'B'.rjust(stat_width)}{'4s'.rjust(stat_width)}{'6s'.rjust(stat_width)}{'SR'.rjust(sr_width)}"
             html.append(header)
             html.append("-" * width)  # Full width divider
             
@@ -834,14 +834,16 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                     continue
                 
                 # Format line with fixed widths
-                line = f"{name_display[:batter_width].ljust(batter_width)}{dismissal[:dismissal_width].ljust(dismissal_width)}{str(runs).rjust(stat_width)}{str(balls).rjust(stat_width)}{str(fours).rjust(stat_width)}{str(sixes).rjust(stat_width)}{str(round(strike_rate, 2)).rjust(sr_width)}"
+                line = f"{name_display[:batter_width].ljust(batter_width)}{str(runs).rjust(stat_width)}{str(balls).rjust(stat_width)}{str(fours).rjust(stat_width)}{str(sixes).rjust(stat_width)}{str(round(strike_rate, 2)).rjust(sr_width)}"
                 html.append(line)
+                dismissal_line = f"{dismissal[:dismissal_width].ljust(actual_width-4)}"
+                html.append(dismissal_line)
             
             # Add extras if available
             extras = inning_data.get('extras', {}).get('r', 0)
             if extras:
                 # Format extras line with proper alignment and visual distinction
-                extras_line = f"{'Extras (b, lb, w, nb, p)'.ljust(batter_width)}{' '.ljust(dismissal_width)}{str(extras).rjust(stat_width)}"
+                extras_line = f"{'Extras (b, lb, w, nb, p)'.ljust(batter_width)}{str(extras).rjust(stat_width)}"
                 # Calculate padding needed to fill the full width
                 padding_needed = width - len(extras_line)
                 if padding_needed > 0:
@@ -918,12 +920,14 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
             html.append("-" * width)
             
             # Header for bowling table - with fixed column widths
-            bowler_width = 35
-            stat_width = 6
-            wide_stat = 7
+            bowler_width = 30
+            medium_stat_width = 5
+            wide_stat_width = 6
+            narrow_stat_width = 4
             # Calculate the proper formatting to match the total width
-            remaining_width = width - bowler_width - (stat_width * 6) - wide_stat
-            bowling_header = f"{'Bowler'.ljust(bowler_width)}{'O'.rjust(stat_width)}{'M'.rjust(stat_width)}{'R'.rjust(stat_width)}{'W'.rjust(stat_width)}{'NB'.rjust(stat_width)}{'WD'.rjust(stat_width)}{'Econ'.rjust(wide_stat)}"
+            remaining_width = width - bowler_width - (stat_width * 6) - wide_stat_width
+    
+            bowling_header = f"{'Bowler'.ljust(bowler_width)}{'O'.rjust(wide_stat_width)}{'M'.rjust(narrow_stat_width)}{'R'.rjust(wide_stat_width)}{'W'.rjust(narrow_stat_width)}{'NB'.rjust(medium_stat_width)}{'WD'.rjust(medium_stat_width)}{'Econ'.rjust(wide_stat_width)}"
             
             # Add padding if needed to match the total width
             if len(bowling_header) < width:
@@ -946,7 +950,7 @@ def format_scorecard_as_html(scorecard_data, match_info, scorecard_file_data=Non
                 wides = bowler.get('wd', 0)
                 economy = bowler.get('eco', 0)
                 
-                bowler_line = f"{name[:bowler_width].ljust(bowler_width)}{str(overs).rjust(stat_width)}{str(maidens).rjust(stat_width)}{str(runs).rjust(stat_width)}{str(wickets).rjust(stat_width)}{str(no_balls).rjust(stat_width)}{str(wides).rjust(stat_width)}{str(round(economy, 2)).rjust(wide_stat)}"
+                bowler_line = f"{name[:bowler_width].ljust(bowler_width)}{str(overs).rjust(wide_stat_width)}{str(maidens).rjust(narrow_stat_width)}{str(runs).rjust(wide_stat_width)}{str(wickets).rjust(narrow_stat_width)}{str(no_balls).rjust(medium_stat_width)}{str(wides).rjust(medium_stat_width)}{str(round(economy, 2)).rjust(wide_stat_width)}"
                 
                 # Add padding if needed to match the total width
                 if len(bowler_line) < width:
