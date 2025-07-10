@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CricLite - Simple, plain text cricket scores. Currently on hold due to API issues.">
+    <meta name="keywords" content="cricket, scores, live scores, cricket match, plain text, terminal">
+    <meta name="author" content="Rishikesh Sreehari">
+
+    <meta property="og:title" content="CricLite - Plain Text Live Cricket Scores">
+    <meta property="og:description" content="Simple, plain text cricket scores. Currently on hold due to API issues.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://criclite.com">
+    <meta property="og:image" content="https://criclite.com/static/og-image.png">
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="CricLite - Plain Text Cricket Scores">
+    <meta name="twitter:description" content="Simple, plain text cricket scores. Currently on hold due to API issues.">
+    <meta name="twitter:image" content="https://criclite.com/static/og-image.png">
+
+    <title>CricLite - Plain Text Live Cricket Scores</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="canonical" href="https://criclite.com">
+
+    <style>
+        :root {
+            --bg-color: #fff;
+            --text-color: #000;
+            --border-color: #555;
+            --link-color: #000;
+            --link-hover-color: #444;
+            --text-color-secondary: #666;
+        }
+        
+        [data-theme="dark"] {
+            --bg-color: #222;
+            --text-color: #ddd;
+            --border-color: #888;
+            --link-color: #ddd;
+            --link-hover-color: #fff;
+            --text-color-secondary: #aaa;
+        }
+        
+        body {
+            font-family: monospace;
+            margin: 0;
+            padding: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            text-align: center;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            margin: 0 auto;
+            padding: 0;
+            max-width: 1200px;
+        }
+        
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-width: 100%;
+            overflow: visible;
+            color: var(--text-color);
+            text-align: center;
+        }
+        
+        .site-title {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 10px auto 2px;
+            line-height: 1;
+            text-align: center;
+            width: 100%;
+            overflow: visible;
+            display: block;
+        }
+        
+        .site-subtitle {
+            font-size: 14px;
+            margin-top: 0;
+            margin-bottom: 5px;
+            text-align: center;
+            width: 100%;
+            overflow: visible;
+            display: block;
+        }
+        
+        .divider {
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .section {
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin: 15px auto 5px;
+            display: inline-block;
+            overflow: visible;
+        }
+        
+        .demo-notice {
+            background-color: rgba(255, 255, 0, 0.1);
+            border: 1px dashed var(--border-color);
+            padding: 10px;
+            margin: 20px auto;
+            max-width: 600px;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .match-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        
+        .match-box {
+            display: inline-block;
+            margin: 15px;
+            padding: 0;
+            vertical-align: top;
+            opacity: 0.7;
+        }
+        
+        .match-link {
+            color: inherit;
+            text-decoration: none;
+            cursor: default;
+        }
+        
+        .match-link:hover {
+            color: var(--text-color);
+        }
+        
+        .match-link pre {
+            margin: 0;
+            padding: 0;
+            font-size: 13.5px; /* MODIFIED: Adjusted font size to fix border overflow */
+            line-height: 1.2;
+            text-align: left;
+            white-space: pre;
+        }
+        
+        .status-message {
+            margin: 30px auto;
+            padding: 20px;
+            max-width: 600px;
+            text-align: left;
+            line-height: 1.6;
+            font-size: 14px;
+            background-color: rgba(255, 0, 0, 0.05);
+            border: 1px solid rgba(255, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+        
+        .status-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        /* Theme toggle styles */
+        .theme-toggle {
+            margin: 10px auto;
+            font-size: 14px;
+        }
+        
+        .theme-toggle a {
+            color: var(--link-color);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .theme-toggle a:hover {
+            text-decoration: none;
+            color: var(--link-hover-color);
+        }
+        
+        .terminal-section {
+            margin: 15px auto;
+            font-family: monospace;
+            text-align: center;
+            width: 100%;
+            max-width: 100%;
+            opacity: 0.6;
+        }
+        
+        .terminal-header {
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .terminal-cmd {
+            margin: 5px 0;
+            text-align: center;
+        }
+        
+        .terminal-cmd code {
+            background-color: rgba(128, 128, 128, 0.1);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
+        /* Footer styles */
+        .footer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin: 15px auto 5px;
+            text-align: center;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 0 10px;
+            text-align: center;
+        }
+        
+        .footer-links a {
+            color: var(--link-color);
+            text-decoration: underline;
+        }
+        
+        .footer-links a:hover {
+            text-decoration: none;
+            color: var(--link-hover-color);
+        }
+        
+        .builder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        .builder a {
+            color: var(--text-color);
+            text-decoration: underline;
+        }
+
+        .builder a:hover {
+            color: var(--link-hover-color);
+        }
+        
+        .version-tag {
+            font-size: 0.7em;
+            font-weight: 300;
+            display: block;
+            text-align: center;
+            width: 100%;
+            margin-top: 5px;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+        
+        .contact-info {
+            margin: 6px 0;
+            font-size: 0.9em;
+            color: var(--text-color-secondary);
+        }
+        
+        .contact-info a {
+            color: var(--link-color);
+            text-decoration: underline;
+        }
+        
+        .contact-info a:hover {
+            opacity: 0.8;
+        }
+        
+        .support-text {
+            margin-top: 10px;
+        }
+        
+        .plain-link {
+            color: inherit;
+            text-decoration: underline;
+        }
+        
+        .plain-link:hover {
+            text-decoration: none;
+        }
+        
+        .timestamp-info {
+            text-align: center;
+            margin: 10px auto;
+            width: 100%;
+            font-family: monospace;
+            opacity: 0.6;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 650px) {
+            .site-title {
+                font-size: 24px;
+            }
+            
+            .footer-links {
+                gap: 10px;
+            }
+            
+            .footer-links a {
+                font-size: 13px;
+            }
+            
+            .builder {
+                font-size: 13px;
+            }
+            
+            .status-message {
+                padding: 15px;
+                font-size: 13px;
+            }
+            
+            .match-container {
+                gap: 10px;
+            }
+            
+            .match-box {
+                margin: 5px;
+            }
+        }
+    </style>
+    <script data-goatcounter="https://criclite.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+    <div class="container">
+        <a href="/" style="text-decoration: none; color: inherit;">
+            <pre class="site-title">CRICLITE</pre>
+        </a>
+        <pre class="site-subtitle">Plain text live cricket scores.</pre>
+        <div class="theme-toggle">
+            <a onclick="toggleTheme()" id="theme-toggle-btn">[Dark]</a>
+        </div>
+        <pre class="divider">=========================================</pre>
+
+        <div class="status-message">
+            <div class="status-title">*** PROJECT CURRENTLY ON HOLD ***</div>
+            <p>Due to issues with finding a reliable and affordable live cricket score provider that aligns with our open-source project goals, CricLite is currently on hold.</p>
+            
+            <p>We're actively working to find a sustainable solution for providing live cricket data. The challenge is finding a provider that offers:</p>
+            <ul style="text-align: left; margin: 10px 0;">
+                <li>Reliable live cricket scores</li>
+                <li>Affordable pricing for open-source projects</li>
+                <li>Comprehensive coverage of international matches</li>
+                <li>API stability and good documentation</li>
+            </ul>
+            
+            <p>We apologize for the inconvenience. If you know of any good solutions or are aware of cricket data providers that might work for our project, please reach out to us!</p>
+            
+            <p style="text-align: center; margin-top: 20px;">
+                <strong>Know a solution? Contact us:</strong><br>
+                Email: hello@rishikeshs.com<br>
+                GitHub: https://github.com/rishikeshsreehari/criclite/issues
+            </p>
+        </div>
+
+        <div class="demo-notice">
+            <pre>*** DEMO DATA BELOW - This is how CricLite looked when working ***</pre>
+        </div>
+
+        <div class="section">
+            <pre class="section-title">[LIVE MATCHES]
+===============</pre>
+            <div class="match-container">
+                <div class="match-box">
+                    <div class="match-link">
+                        <pre>+==========================================+
+|           IND vs AUS                     |
+|         1st Test - Perth                 |
+|               Day 2                      |
++==========================================+
+| Australia 1st Innings                    |
+| 487/6 (98.2 overs)                       |
+|                                          |
+| S. Smith        154* (289b 16x4)         |
+| T. Head          89  (156b 8x4 2x6)      |
+| A. Carey         12* (28b 1x4)           |
+|                                          |
+| India Bowling:                           |
+| R. Ashwin       2/98  (28 ov)            |
+| J. Bumrah       2/112 (24.2 ov)          |
+| M. Shami        1/87  (22 ov)            |
+|                                          |
+| Status: LIVE - Day 2, Session 2          |
++==========================================+</pre>
+                    </div>
+                </div>
+                
+                <div class="match-box">
+                    <div class="match-link">
+                        <pre>+==========================================+
+|           ENG vs SA                      |
+|         2nd ODI - Cape Town              |
++==========================================+
+| Target: 279 (50 overs)                   |
+| England 156/4 (32.1 overs)               |
+|                                          |
+| J. Root         67* (89b 5x4)            |
+| B. Stokes       23* (31b 2x4)            |
+| H. Brook        45  (52b 4x4)            |
+|                                          |
+| South Africa Bowling:                    |
+| K. Rabada       2/34 (8 ov)              |
+| L. Ngidi        1/28 (7.1 ov)            |
+|                                          |
+| Req: 123 runs from 107 balls             |
+| RRR: 6.91                                |
+| Status: LIVE                             |
++==========================================+</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <pre class="section-title">[UPCOMING MATCHES]
+===================</pre>
+            <div class="match-container">
+                <div class="match-box">
+                    <div class="match-link">
+                        <pre>+==========================================+
+|           PAK vs WI                      |
+|         1st T20I - Karachi               |
++==========================================+
+| Date: Today, 7:00 PM PKT                 |
+|                                          |
+| Pakistan (Probable XI):                  |
+| B. Azam (c), M. Rizwan (wk),             |
+| F. Zaman, H. Ali, S. Khan,               |
+| I. Ahmed, S. Afridi, H. Rauf,            |
+| M. Nawaz, N. Shah, M. Hasnain            |
+|                                          |
+| West Indies (Probable XI):               |
+| K. Pollard (c), N. Pooran (wk),          |
+| S. Hetmyer, R. Shepherd, A. Russell,     |
+| J. Holder, A. Joseph, O. McCoy,          |
+| G. Motie, J. Seales, S. Cottrell         |
+|                                          |
+| Status: UPCOMING                         |
++==========================================+</pre>
+                    </div>
+                </div>
+                
+                <div class="match-box">
+                    <div class="match-link">
+                        <pre>+==========================================+
+|           NZ vs BAN                      |
+|         2nd Test - Wellington            |
++==========================================+
+| Date: Tomorrow, 11:00 AM NZDT            |
+|                                          |
+| New Zealand (Probable XI):               |
+| T. Latham (c), T. Blundell (wk),         |
+| K. Williamson, D. Mitchell,              |
+| R. Ravindra, G. Phillips, M. Santner,    |
+| T. Southee, M. Henry, N. Wagner,         |
+| A. Patel                                 |
+|                                          |
+| Bangladesh (Probable XI):                |
+| N. Shanto (c), L. Das (wk),              |
+| M. Hasan, S. Al Hasan, M. Rahim,         |
+| M. Miraz, T. Ahmed, T. Islam,            |
+| S. Islam, K. Ahmed, N. Hasan             |
+|                                          |
+| Status: UPCOMING                         |
++==========================================+</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <pre class="section-title">[COMPLETED MATCHES]
+====================</pre>
+            <div class="match-container">
+                <div class="match-box">
+                    <div class="match-link">
+                        <pre>+==========================================+
+|           SL vs AFG                      |
+|         3rd ODI - Colombo                |
++==========================================+
+| Result: Sri Lanka won by 7 wickets       |
+|                                          |
+| Afghanistan: 234/10 (48.2 overs)         |
+| R. Zurmatai      89 (112b 7x4 1x6)       |
+| H. Zazai         43 (67b 4x4)            |
+| A. Omarzai       32 (45b 2x4)            |
+|                                          |
+| Sri Lanka: 237/3 (43.1 overs)            |
+| K. Mendis        95* (86b 8x4 2x6)       |
+| P. Silva         67  (74b 6x4)           |
+| D. Shanaka       38* (41b 3x4)           |
+|                                          |
+| Player of Match: K. Mendis (SL)          |
+| Status: COMPLETED                        |
++==========================================+</pre>
+                    </div>
+                </div>
+                
+                <div class="match-box">
+                    <div class="match-link">
+                        <pre>+==========================================+
+|           IRE vs ZIM                     |
+|         1st T20I - Dublin                |
++==========================================+
+| Result: Ireland won by 23 runs           |
+|                                          |
+| Ireland: 178/6 (20 overs)                |
+| P. Stirling      67 (45b 6x4 3x6)        |
+| H. Tector        41 (32b 4x4)            |
+| G. Dockrell      28 (18b 2x4 1x6)        |
+|                                          |
+| Zimbabwe: 155/8 (20 overs)               |
+| S. Williams      52 (41b 5x4 1x6)        |
+| R. Chakabva      34 (28b 3x4)            |
+| W. Madhevere     25 (19b 2x4)            |
+|                                          |
+| Player of Match: P. Stirling (IRE)       |
+| Status: COMPLETED                        |
++==========================================+</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <pre class="divider">=========================================</pre>
+
+        <div class="terminal-section">
+            <div class="terminal-header">Terminal Access (Currently Unavailable)</div>
+            <div class="terminal-cmd">Linux/Mac: <code>curl -s https://criclite.com/plain.txt</code></div>
+            <div class="terminal-cmd">Windows: <code>curl.exe -s https://criclite.com/plain.txt</code></div>
+        </div>
+
+        <div class="timestamp-info">
+            <p>Last updated: Jan 15, 2025 14:32 UTC (Demo data)<br>
+            This is sample data showing how the site looked when operational.</p>
+        </div>
+
+        <div class="contact-info">
+            Something wrong? <a href="mailto:hello@rishikeshs.com">Email me</a> or 
+            <a href="https://github.com/rishikeshsreehari/criclite/issues" target="_blank">report on GitHub</a>
+        </div>
+
+        <div class="support-text">
+            Support this project: <a href="https://ko-fi.com/rishikeshs" target="_blank" class="plain-link">Ko-Fi</a> | <a href="https://upime.com/donate?upi_id=rishikeshsreehari%40okhdfcbank&name=Rishikesh%20Sreehari" class="plain-link">UPI</a>
+        </div>
+
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="/about">About</a>
+                <a href="https://github.com/rishikeshsreehari/criclite" target="_blank">Github</a>
+                <a href="https://criclite.goatcounter.com/" target="_blank">Stats</a>
+                <a href="/plain.txt">plain.txt</a>
+            </div>
+
+            <div class="builder">
+                Built by&nbsp;<a href="https://rishikeshs.com?utm_source=criclite.com" target="_blank">Rishikesh</a>
+            </div>
+            
+            <div class="version-tag">v0.2.9</div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const btn = document.getElementById('theme-toggle-btn');
+            
+            if (html.getAttribute('data-theme') === 'dark') {
+                html.setAttribute('data-theme', 'light');
+                btn.textContent = '[Dark]';
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                btn.textContent = '[Light]';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Load saved theme or default to light
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        const btn = document.getElementById('theme-toggle-btn');
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        btn.textContent = savedTheme === 'dark' ? '[Light]' : '[Dark]';
+    </script>
+</body>
+</html>
+```
