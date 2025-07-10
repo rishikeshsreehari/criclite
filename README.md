@@ -1,5 +1,9 @@
 # CricLite
 
+> **⚠️ PROJECT CURRENTLY ON HOLD**  
+> Due to challenges in finding a reliable and affordable cricket data API provider that aligns with our open-source project goals, CricLite development is currently paused. I'm actively seeking solutions that offer reliable live cricket scores, affordable pricing for open-source projects, comprehensive match coverage, and stable API documentation. If you know of suitable providers or have suggestions, please reach out via GitHub issues or [email](mailto:hello@rishikeshs.com).
+
+
 CricLite is a lightweight FastAPI application that provides plain text cricket scores and match information. The service fetches live cricket data from the CricData API, processes it, and presents it in a clean, text-based format accessible via both web browsers and terminal.
 
 ## Technical Overview
